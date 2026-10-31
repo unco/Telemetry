@@ -6,9 +6,9 @@
  *   {
  *     id:      'cm_…',
  *     anchor:  {
- *       view:    'sovereignty',        // view id
- *       groupBy: 'region' | 'none',    // group-by in effect
- *       node:    'hosting:sovcloud',   // "<dimension>:<value>" — stable over time
+ *       view:    'juju',               // view id
+ *       groupBy: 'device' | 'juju' …,  // what column 1 shows
+ *       node:    'juju:2.9',           // "<dimension>:<value>" — stable over time
  *       period:  '2026-03' | null      // optional: pinned to a month (tab 4)
  *     },
  *     author, body, createdAt (ISO), resolved: false
@@ -20,29 +20,29 @@
  */
 (function (TL) {
   'use strict';
-  const KEY = 'tl.insights.comments.v1';
+  const KEY = 'tl.insights.comments.v2';
 
   const SEED = [
-    { anchor: { view: 'canonical-infra', groupBy: 'none', node: 'substrate:vmware', period: '2026-02' },
-      author: 'Field engineering · EMEA', body: 'VMware share starts falling here — lines up with the renewal-price change. Worth checking whether MicroCloud or OpenStack is absorbing most of it.' },
-    { anchor: { view: 'canonical-infra', groupBy: 'none', node: 'substrate:microcloud', period: '2026-06' },
-      author: 'Product · MicroCloud', body: 'Edge + VMware migrations are both landing here. Can we split “new” vs “migrated” machines in a future view?' },
-    { anchor: { view: 'canonical-infra', groupBy: 'none', node: 'orchestration:jaas', period: null },
-      author: 'Product · Juju', body: 'JAAS growth is mostly existing Juju users consolidating controllers, not net-new. Do not read it as new adoption.' },
-    { anchor: { view: 'canonical-infra', groupBy: 'industry', node: 'industry:telco', period: null },
-      author: 'UX research', body: 'Telco is the clearest full-stack story (edge → MicroCloud → Juju). Good candidate for the next round of interviews.' },
-    { anchor: { view: 'sovereignty', groupBy: 'region', node: 'region:eu', period: '2026-05' },
-      author: 'Strategy', body: 'EU repatriation to sovereign providers accelerates from May. Is this driven by public-sector tenders?' },
-    { anchor: { view: 'sovereignty', groupBy: 'none', node: 'keys:provider', period: null },
-      author: 'Security engineering', body: 'Provider-held keys on sovereign providers is the gap — in-jurisdiction but not customer-controlled. Flag in the sovereignty narrative.' },
-    { anchor: { view: 'sovereignty', groupBy: 'none', node: 'jurisdiction:region', period: null },
-      author: 'Legal', body: '“In-region, foreign operator” is still exposed to extraterritorial law. Keep it visually distinct from in-jurisdiction.' },
-    { anchor: { view: 'confidential', groupBy: 'industry', node: 'industry:finance', period: null },
-      author: 'Sales · Financial services', body: 'Finance leads confidential adoption, mostly TDX on public cloud. On-prem CC is the opportunity.' },
-    { anchor: { view: 'confidential', groupBy: 'none', node: 'confidential:cca', period: '2026-08' },
-      author: 'Telemetry team', body: 'Arm CCA counts are small — confirm the agent reports realm VMs correctly before this goes in a deck.' },
-    { anchor: { view: 'confidential', groupBy: 'none', node: 'workload:ai', period: null },
-      author: 'Product · AI', body: 'Confidential AI is the fastest-growing slice. Track it as its own KPI.' }
+    { anchor: { view: 'juju', groupBy: 'juju', node: 'juju:2.9', period: null },
+      author: 'Product · Juju', body: '2.9 devices are still publishing through the Juju agent. Good list for upgrade outreach — can we export it?' },
+    { anchor: { view: 'juju', groupBy: 'juju', node: 'juju:4.1', period: '2026-06' },
+      author: 'Field engineering · EMEA', body: '4.1 upgrades pick up from here. Matches the rollout we did with the Frankfurt customers.' },
+    { anchor: { view: 'juju', groupBy: 'device', node: 'device:fra-metal-01', period: null },
+      author: 'UX research', body: 'Good example device for the interview walkthrough: MAAS + Juju, EU residency.' },
+    { anchor: { view: 'jaas', groupBy: 'jaas', node: 'jaas:jaas', period: '2026-04' },
+      author: 'Product · JAAS', body: 'Most JAAS growth is existing self-hosted controllers moving over, not net-new Juju users.' },
+    { anchor: { view: 'maas', groupBy: 'device', node: 'publisher:maas', period: null },
+      author: 'Telemetry team', body: 'MAAS agent is the second-largest publisher by volume. Worth checking the sampling rate.' },
+    { anchor: { view: 'microcloud', groupBy: 'type', node: 'type:edge', period: null },
+      author: 'Product · MicroCloud', body: 'Edge gateways are where MicroCloud adoption is concentrated.' },
+    { anchor: { view: 'sovereignty', groupBy: 'sovereignty', node: 'destination:canonical-global', period: null },
+      author: 'Security engineering', body: 'EU-sovereign devices still reach the global destination via rule R2 (attestation evidence, 30% share). Rule order needs fixing so residency wins.' },
+    { anchor: { view: 'sovereignty', groupBy: 'device', node: 'policy:eu-res', period: '2026-05' },
+      author: 'Legal', body: 'EU residency policy roll-out lands here. Confirm the date with the customer before we present.' },
+    { anchor: { view: 'confidential', groupBy: 'confidential', node: 'publisher:attest', period: '2026-08' },
+      author: 'Product · Confidential computing', body: 'Attestation volume tracks CC enablement closely. Use it as the adoption KPI.' },
+    { anchor: { view: 'stack', groupBy: 'stack', node: 'stack:full', period: null },
+      author: 'Strategy', body: 'Full-stack devices publish the richest telemetry. Make this the default lens for the exec review.' }
   ];
 
   function uid() { return 'cm_' + Math.random().toString(36).slice(2, 10); }

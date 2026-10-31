@@ -126,28 +126,30 @@ body[data-tab="3"] .insights__body, body[data-tab="4"] .insights__body { grid-te
 .chart-wrap { width: 100%; overflow-x: auto; }
 .chart-legend { position: relative; height: 22px; margin-bottom: 4px; font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
 .chart-legend__col { position: absolute; top: 0; white-space: nowrap; }
-.chart-legend__col.is-last { transform: translateX(calc(-100% + 14px)); }
-.chart-legend__col.is-group { color: var(--ink); font-weight: 500; }
+.chart-legend__col.is-first { color: var(--ink); font-weight: 500; }
 
 /* Sankey */
 .sankey { display: block; overflow: visible; }
-.sk-link__base { fill: var(--link-base); opacity: .55; transition: opacity .15s; }
-.sk-link:hover .sk-link__base { opacity: .9; }
-.sk-link__hl { opacity: .78; }
-.sk-link__focus { fill: #8d8d8d; opacity: .75; }
-.sk-link.is-dim .sk-link__base { opacity: .22; }
+.sk-link__base { fill: var(--link-base); opacity: .32; transition: opacity .15s; }
+.sk-link:hover .sk-link__base { opacity: .6; }
+.sk-link__seg { opacity: .42; }
+.sk-link:hover .sk-link__seg { opacity: .62; }
+.sk-link.is-focusing .sk-link__base { opacity: .14; }
+.sk-link__focus { opacity: .62; }
+.sk-link__focus-grey { fill: #8d8d8d; opacity: .4; }
 .sk-node { cursor: pointer; outline: none; }
 .sk-node__hit { fill: transparent; }
-.sk-node__bar { fill: var(--node); }
-.sk-node.is-dim .sk-node__bar { fill: #bdbdbd; }
-.sk-node.is-dim .sk-label, .sk-node.is-dim .sk-meta { opacity: .45; }
-.sk-node.is-selected .sk-node__bar, .sk-node.is-focus .sk-node__bar { fill: var(--ink); }
+.sk-node__bar { fill: #9a9a9a; }
+.sk-node.is-dim .sk-node__bar, .sk-node.is-dim .sk-node__seg { opacity: .3; }
+.sk-node.is-dim .sk-label, .sk-node.is-dim .sk-meta { opacity: .4; }
+.sk-node.is-selected .sk-node__bar, .sk-node.is-focus .sk-node__bar { fill: #333; }
 .sk-node.is-selected .sk-node__hit { fill: none; stroke: var(--ink); stroke-width: 1.5; stroke-dasharray: 3 2; }
 .sk-node:focus-visible .sk-node__hit { stroke: var(--focus); stroke-width: 2; fill: none; }
 .sk-label { font-size: 13px; fill: var(--text); paint-order: stroke; stroke: rgba(255,255,255,.8); stroke-width: 3px; stroke-linejoin: round; pointer-events: none; }
+.sk-label--small { font-size: 11px; }
 .sk-node.is-selected .sk-label, .sk-node.is-focus .sk-label { font-weight: 600; }
 .sk-label__canon { fill: var(--orange); font-size: 10px; }
-.sk-meta { font-size: 11.5px; fill: var(--muted); paint-order: stroke; stroke: rgba(255,255,255,.8); stroke-width: 3px; stroke-linejoin: round; pointer-events: none; font-family: "Ubuntu Sans Mono", ui-monospace, monospace; }
+.sk-meta { font-size: 11px; fill: var(--muted); paint-order: stroke; stroke: rgba(255,255,255,.8); stroke-width: 3px; stroke-linejoin: round; pointer-events: none; font-family: "Ubuntu Sans Mono", ui-monospace, monospace; }
 .sk-delta--up { fill: var(--positive); }
 .sk-delta--down { fill: var(--negative); }
 .sk-delta--flat { fill: var(--faint); }
@@ -223,3 +225,19 @@ body[data-tab="3"] .insights__body, body[data-tab="4"] .insights__body { grid-te
   .l-nav__list { display: flex; }
   .l-main { padding: 16px; }
 }
+
+/* View colour chips, distribution bar, device search */
+.p-chip--legend { display: inline-flex; align-items: center; gap: 8px; }
+.p-chip--legend.is-active { background: #fff; color: var(--ink); border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.p-chip--legend.is-dimmed { opacity: .45; }
+.p-chip__count { font-family: "Ubuntu Sans Mono", ui-monospace, monospace; font-size: .75rem; color: var(--muted); }
+.swatch--none { outline: 1px solid #bbb; }
+.p-dist { display: flex; height: 8px; margin-top: 6px; border-radius: 1px; overflow: hidden; max-width: 260px; }
+.p-dist__seg { display: block; min-width: 2px; }
+.p-kpi__unit { font-size: .875rem; color: var(--muted); }
+.p-search { border: 0; border-bottom: 1px solid var(--ink); background: #fff; padding: 5px 8px; margin-left: auto; min-width: 200px; font-size: .875rem; }
+.tooltip__attrs { display: grid; grid-template-columns: auto 1fr; gap: 1px 10px; margin: 6px 0 0; }
+.tooltip__attrs dt { color: #bbb; }
+.tooltip__attrs dd { margin: 0; }
+.tooltip__attrs dd.is-view { color: #ffb38f; font-weight: 600; }
+.tooltip__hist { margin-top: 6px; padding-top: 6px; border-top: 1px solid #333; color: #ddd; font-size: .75rem; }

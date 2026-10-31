@@ -1,47 +1,59 @@
 # Telemetry · Insights (Sankey prototype)
 
-A dependency-free prototype of the **Insights** page for Ubuntu fleet telemetry. It's a Sankey illustration presented as four demo tabs, each adding one capability:
+A dependency-free prototype of the **Insights** page for Ubuntu telemetry. It shows how telemetry flows through the pipeline:
+
+```
+[ column 1 ]  →  Publisher  →  Policy  →  Destination
+```
+
+**Only column 1 changes.**
+- With **no group-by**, column 1 has one node per **device**.
+- With a **group-by** (e.g. Juju version), the devices collapse into streams per value (4.1 / 3.6 / 2.9 / none). Publisher, policy and destination stay the same.
+
+A **view** colours every device by one attribute and carries that colour through its flows to the destination. For example, the Juju view colours each device by its Juju version. Views never change the columns.
+
+Open `index.html` directly in a browser; there's no build step. All data is **synthetic** and seeded.
 
 | Tab | Capabilities |
 |---|---|
-| 1 · View | Curated views, view-level highlight, hover/click path tracing |
-| 2 · View + group by | Adds a "who" column on the left, with a chip filter (click toggles a group, Alt-click isolates it) |
-| 3 · + Comments | Comments on nodes, scoped to the current view and group-by |
-| 4 · + Over time | 12-month scrubber with play and step controls, deltas against a baseline, comments pinned to a month, timeline markers |
-
-Open `index.html` directly in a browser. There's no build step and no server needed. All data is **synthetic** and seeded, so it's the same on every load.
+| 1 · View | Devices coloured by the view attribute. Click a colour to isolate it. Hover or click a node to trace its full path |
+| 2 · View + group by | Column 1 collapses to group-by values. Chips filter streams; Alt-click shows only one. With devices, the chips filter by view value and a search box filters by name |
+| 3 · + Comments | Comments on any node, scoped to view and group-by. Comments on the same node in other contexts are linked |
+| 4 · + Over time | 12-month scrubber with play, deltas against a baseline, comments pinned to a month, and timeline markers |
 
 ## Views
 
-| View | Stages (columns) | Highlights |
+| View | Colours devices by | Values |
 |---|---|---|
-| Canonical infrastructure | Hosting → Infrastructure → Operations → Workload | Any Canonical layer · Full Canonical stack · Model-driven (Juju/JAAS) |
-| Sovereignty | Hosting → Data jurisdiction → Key custody → Infrastructure | Fully sovereign · In-jurisdiction only · Sovereign on Canonical infra |
-| Confidential compute | Infrastructure → Confidential compute → Key custody → Workload | Confidential-enabled · Confidential AI · Confidential on Canonical infra |
+| Juju | Juju version | 4.1 · 3.6 LTS · 2.9 · none |
+| JAAS | Juju controller | JAAS · self-hosted · none |
+| MAAS | MAAS version | 3.6 · 3.5 · none |
+| MicroCloud | MicroCloud membership | member · none |
+| Canonical infra | Derived stack | full (Juju + MAAS/MicroCloud) · partial · none |
+| Sovereignty | Sovereignty zone | EU · UK · global |
+| Confidential compute | CC hardware | Intel TDX · AMD SEV-SNP · none |
 
-Canonical products (MAAS, MicroCloud, Canonical OpenStack, Juju, JAAS, Canonical Kubernetes) are marked with an orange ◆ in every view, whatever highlight is active.
-
-Highlighting works on three levels:
-1. **View highlight**: the coloured share of every flow and node, plus a KPI.
-2. **Path trace**: hover or click a node to recompute the flows restricted to that node, so you see its true end-to-end path, not just the adjacent links.
-3. **Product marking**: the ◆ badge on Canonical products.
+Group-by can use any of these attributes, plus device type, region and Ubuntu release.
 
 ## Data structure (`js/data.js`)
 
 ```
-DIMENSIONS  { id → { label, kind, values: [{ id, label, canonical? }] } }   // ordered vocabulary
-COHORTS     [{ id, attrs: {dim → valueId}, series: [count per month],
-               changes: [{ month, attrs, note }] }]                         // facts + dated migrations
-VIEWS       [{ id, label, question, stages: [dim…], color,
-               highlights: [{ id, label, kpi, test(fact) }] }]              // curated lenses
-GROUP_BYS   ['none', 'region', 'industry', 'orgSize', 'release', 'arch']
+ATTRIBUTES    { attr → { label, values: [{ id, label, color? }] } }   // device vocabulary; no colour = neutral
+PUBLISHERS / POLICIES / DESTINATIONS                                 // pipeline vocabularies
+ROUTING       [{ id, when: {attr|publisher: value|[values]}, policy, to: [[destination, share]] }]
+              // ordered, first match wins — auditable and easy to change
+DEVICES       [{ id, attrs, extras, onboarded, scale, growth,
+                 changes: [{ month, attrs, note }] }]                 // upgrades, migrations, policy moves
+VIEWS         [{ id, attr, label, question }]
+GROUP_BYS     ['device', …attributes]
 ```
 
-- `snapshot(monthIndex)` flattens cohorts into facts `{…attrs, count}` for one period.
-- `sankey.aggregate(facts, stages, {filter, highlight, focus})` returns nodes and links, each carrying `value`, `h` (highlighted), `f` (focused) and `hf`.
-- Node ids are `"<dimension>:<value>"`. They're stable across time, views and group-bys, which is what lets comments and time scrubbing line up.
-- Node order within a column follows the fixed dimension order, so nothing jumps around during playback.
-- Migrations such as VMware → MicroCloud/OpenStack, Juju → JAAS, hyperscaler → sovereign cloud, confidential compute enablement and LTS upgrades are modelled as dated `changes`. That's why the flows actually move over time.
+- `snapshot(month)` expands devices × publishers × routing into flow facts: `{ device, …attrs, publisher, policy, destination, rule, count }`.
+- `sankey.aggregate(facts, [col1, 'publisher', 'policy', 'destination'], { segAttr: view.attr, filter, focus })` gives every node and link a `seg` breakdown by view value. That breakdown is what colours flows end to end.
+- Node ids are `"<dimension>:<value>"` (e.g. `juju:3.6`, `device:fra-metal-01`, `policy:eu-res`). They stay the same across time, views and group-bys.
+- Columns are top-aligned, so the top stream runs horizontally and lower streams rise into it. Node order is fixed, so playback doesn't reshuffle.
+
+The routing rules deliberately contain a realistic flaw. Rule R2 (attestation evidence) comes before R4 (EU residency), so a little telemetry from EU-sovereign devices reaches the global destination. The Sovereignty view makes this visible, and a seeded comment flags it.
 
 ## Comments (`js/comments.js`)
 
@@ -49,20 +61,18 @@ GROUP_BYS   ['none', 'region', 'industry', 'orgSize', 'release', 'arch']
 { id, anchor: { view, groupBy, node, period|null }, author, body, createdAt, resolved }
 ```
 
-- A thread belongs to a node **within a view and group-by context**. For example, `region:eu` under *Sovereignty · by Region* is a different conversation from the same node under *Confidential compute · by Region*.
-- When a node has comments in other contexts, the panel lists them with a link that switches to that context.
-- `period` is optional. In Tab 4 new comments are pinned to the current month by default; pinned comments appear as timeline markers and jump the scrubber when clicked.
-- Comments are stored in `localStorage`. **Reset demo comments** restores the seed set.
+Comments are stored in `localStorage`. **Reset demo comments** restores the seed set.
 
 ## Files
 
 ```
 index.html        layout: left nav (Insights active), header, tabs
 css/app.css       Canonical/Vanilla-style app styling
-js/data.js        dimensions, synthetic cohorts, views, group-bys
+js/data.js        attributes, pipeline, routing rules, devices, views
 js/sankey.js      aggregate · interpolate · layout · SVG render
 js/comments.js    comment store
 js/app.js         page controller and tab capability flags
+docs/             screenshots
 ```
 
 ## Screenshots
