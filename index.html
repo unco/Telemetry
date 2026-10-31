@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Insights · Telemetry</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Ubuntu+Sans:wght@300;400;500;600&family=Ubuntu+Sans+Mono&display=swap">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="l-app">
+  <!-- Left navigation -->
+  <nav class="l-nav" aria-label="Main">
+    <div class="l-nav__brand">
+      <span class="l-nav__tag" aria-hidden="true"></span>
+      <span class="l-nav__product">Telemetry</span>
+    </div>
+    <ul class="l-nav__list">
+      <li><a class="l-nav__item" href="#"><span class="l-nav__icon" aria-hidden="true">▤</span>Overview</a></li>
+      <li><a class="l-nav__item" href="#"><span class="l-nav__icon" aria-hidden="true">▦</span>Fleet</a></li>
+      <li><a class="l-nav__item is-active" href="#" aria-current="page"><span class="l-nav__icon" aria-hidden="true">⇶</span>Insights</a></li>
+      <li><a class="l-nav__item" href="#"><span class="l-nav__icon" aria-hidden="true">☰</span>Reports</a></li>
+      <li><a class="l-nav__item" href="#"><span class="l-nav__icon" aria-hidden="true">⚑</span>Alerts</a></li>
+    </ul>
+    <ul class="l-nav__list l-nav__list--bottom">
+      <li><a class="l-nav__item" href="#"><span class="l-nav__icon" aria-hidden="true">⚙</span>Settings</a></li>
+      <li><a class="l-nav__item" href="#"><span class="l-nav__icon" aria-hidden="true">?</span>Documentation</a></li>
+      <li class="l-nav__user"><span class="l-nav__avatar" aria-hidden="true">UX</span>Design review</li>
+    </ul>
+  </nav>
+
+  <!-- Main -->
+  <main class="l-main" id="main">
+    <header class="p-page-header">
+      <div>
+        <div class="p-breadcrumb">Telemetry / <strong>Insights</strong></div>
+        <h1 class="p-heading">Insights</h1>
+        <p class="p-subtitle">Opt-in fleet telemetry across Ubuntu deployments, shown as flows from where machines run to what they run. Synthetic demo data.</p>
+      </div>
+      <div class="p-page-header__actions">
+        <button class="p-button" id="reset-demo" type="button">Reset demo comments</button>
+      </div>
+    </header>
+
+    <div class="p-tabs" role="tablist" aria-label="Demo stages" id="tabs"></div>
+    <p class="p-tab-intro" id="tab-intro"></p>
+
+    <section class="insights" id="insights" aria-live="polite">
+      <!-- Controls -->
+      <div class="p-toolbar" id="toolbar">
+        <div class="p-field">
+          <span class="p-field__label" id="lbl-view">View</span>
+          <div class="p-segmented" role="radiogroup" aria-labelledby="lbl-view" id="view-switch"></div>
+        </div>
+        <div class="p-field" id="groupby-field">
+          <label class="p-field__label" for="groupby">Group by</label>
+          <select id="groupby" class="p-select"></select>
+        </div>
+        <div class="p-field p-field--grow">
+          <span class="p-field__label" id="lbl-hl">Highlight</span>
+          <div class="p-chips" role="radiogroup" aria-labelledby="lbl-hl" id="hl-switch"></div>
+        </div>
+      </div>
+      <div class="p-group-filter" id="group-filter" hidden></div>
+
+      <p class="p-question" id="view-question"></p>
+      <div class="p-kpis" id="kpis"></div>
+
+      <div class="insights__body">
+        <div class="p-card insights__chart">
+          <div class="chart-legend" id="legend"></div>
+          <div class="chart-wrap" id="chart-wrap">
+            <svg id="sankey" class="sankey" role="img" aria-label="Sankey diagram"></svg>
+          </div>
+          <div class="p-timeline" id="timeline" hidden></div>
+        </div>
+        <aside class="p-card comment-panel" id="comments" hidden aria-label="Comments"></aside>
+      </div>
+    </section>
+  </main>
+</div>
+<div class="tooltip" id="tooltip" role="tooltip" hidden></div>
+
+<script src="js/data.js"></script>
+<script src="js/sankey.js"></script>
+<script src="js/comments.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
