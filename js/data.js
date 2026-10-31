@@ -4,6 +4,11 @@
  * The Sankey always shows the telemetry pipeline:
  *
  *      [ column 1 ]  →  Publisher  →  Policy  →  Destination
+ *                       (snap)   ↑ snapd     ↑ telemetry endpoint
+ *
+ * Every snap hands its telemetry to snapd, which enforces naming and
+ * on-device rules and multiplexes all snaps into a single stream to the
+ * telemetry endpoint. The endpoint demultiplexes, routes and forwards.
  *
  * Column 1 is the only thing that changes:
  *   - no group-by  → one node per DEVICE
@@ -90,7 +95,7 @@ window.TL = window.TL || {};
       { id: 'none', label: 'Not confidential', color: GREY }] },
     type: { label: 'Device type', short: 'Type', values: [
       { id: 'metal', label: 'Bare-metal server' }, { id: 'vm', label: 'Virtual machine' },
-      { id: 'k8s', label: 'Kubernetes node' }, { id: 'edge', label: 'Edge gateway' }] },
+      { id: 'k8s', label: 'Kubernetes node' }, { id: 'edge', label: 'Edge device' }] },
     region: { label: 'Region', short: 'Region', values: [
       { id: 'fra', label: 'Frankfurt' }, { id: 'par', label: 'Paris' }, { id: 'ldn', label: 'London' },
       { id: 'nyc', label: 'New York' }, { id: 'sfo', label: 'San Francisco' }, { id: 'sgp', label: 'Singapore' }] },
@@ -99,22 +104,25 @@ window.TL = window.TL || {};
   };
 
   // ---- Pipeline vocabularies -----------------------------------------
-  const PUBLISHERS = { label: 'Publisher', values: [
-    { id: 'ubuntu-report', label: 'ubuntu-report' },
-    { id: 'snapd', label: 'snapd' },
-    { id: 'livepatch', label: 'Livepatch' },
-    { id: 'landscape', label: 'Landscape client' },
-    { id: 'juju', label: 'Juju agent', canonical: true },
-    { id: 'maas', label: 'MAAS agent', canonical: true },
-    { id: 'microcloud', label: 'MicroCloud agent', canonical: true },
-    { id: 'attest', label: 'CC attestation' }] };
+  // Publishers are snaps. Every snap hands its telemetry to snapd on the
+  // device; snapd enforces naming and on-device rules, multiplexes all
+  // snaps into one stream and sends it to the telemetry endpoint, which
+  // demultiplexes, routes and forwards. Labels are the snap names that
+  // snapd enforces.
+  const PUBLISHERS = { label: 'Publisher (snap)', values: [
+    { id: 'livepatch', label: 'canonical-livepatch' },
+    { id: 'landscape', label: 'landscape-client' },
+    { id: 'juju', label: 'juju', canonical: true },
+    { id: 'maas', label: 'maas', canonical: true },
+    { id: 'microcloud', label: 'microcloud', canonical: true },
+    { id: 'attest', label: 'cc-attestation' }] };
   const POLICIES = { label: 'Policy', values: [
     { id: 'standard', label: 'Standard (anonymised)' },
     { id: 'redact', label: 'PII redaction' },
     { id: 'eu-res', label: 'EU data residency' },
     { id: 'uk-res', label: 'UK data residency' },
     { id: 'attested', label: 'Attested release only' },
-    { id: 'local', label: 'Local only (no export)' },
+    { id: 'local', label: 'Customer only (no Canonical copy)' },
     { id: 'drop', label: 'Opted out (drop)' }] };
   const DESTINATIONS = { label: 'Destination', values: [
     { id: 'canonical-global', label: 'Canonical telemetry · global' },
@@ -122,19 +130,21 @@ window.TL = window.TL || {};
     { id: 'canonical-uk', label: 'Canonical telemetry · UK region' },
     { id: 'landscape', label: 'Customer Landscape (on-prem)' },
     { id: 'siem', label: 'Customer SIEM' },
-    { id: 'discard', label: 'Discarded' }] };
+    { id: 'discard', label: 'Not sent (dropped on device)' }] };
 
-  // ---- Routing rules (ordered, first match wins) ----------------------
+  // ---- Policy rules (ordered, first match wins) -----------------------
   // `when` matches device attributes and/or publisher; `to` lists
-  // destinations with shares.
+  // destinations with shares. `at` records where the rule is applied:
+  //   'snapd'    – on the device, before the stream leaves it
+  //   'endpoint' – at the telemetry endpoint, after demultiplexing
   const ROUTING = [
-    { id: 'R1', when: { consent: 'optout', publisher: ['ubuntu-report', 'snapd'] }, policy: 'drop', to: [['discard', 1]] },
-    { id: 'R2', when: { publisher: 'attest' }, policy: 'attested', to: [['siem', 0.7], ['canonical-global', 0.3]] },
-    { id: 'R3', when: { publisher: 'landscape' }, policy: 'local', to: [['landscape', 1]] },
-    { id: 'R4', when: { sovereignty: 'eu' }, policy: 'eu-res', to: [['canonical-eu', 1]] },
-    { id: 'R5', when: { sovereignty: 'uk' }, policy: 'uk-res', to: [['canonical-uk', 1]] },
-    { id: 'R6', when: { publisher: ['juju', 'maas', 'microcloud'] }, policy: 'redact', to: [['canonical-global', 0.85], ['siem', 0.15]] },
-    { id: 'R7', when: {}, policy: 'standard', to: [['canonical-global', 1]] }
+    { id: 'R1', at: 'snapd', when: { consent: 'optout' }, policy: 'drop', to: [['discard', 1]] },
+    { id: 'R2', at: 'endpoint', when: { publisher: 'attest' }, policy: 'attested', to: [['siem', 0.7], ['canonical-global', 0.3]] },
+    { id: 'R3', at: 'endpoint', when: { publisher: 'landscape' }, policy: 'local', to: [['landscape', 1]] },
+    { id: 'R4', at: 'endpoint', when: { sovereignty: 'eu' }, policy: 'eu-res', to: [['canonical-eu', 1]] },
+    { id: 'R5', at: 'endpoint', when: { sovereignty: 'uk' }, policy: 'uk-res', to: [['canonical-uk', 1]] },
+    { id: 'R6', at: 'snapd', when: { publisher: ['juju', 'maas', 'microcloud'] }, policy: 'redact', to: [['canonical-global', 0.85], ['siem', 0.15]] },
+    { id: 'R7', at: 'endpoint', when: {}, policy: 'standard', to: [['canonical-global', 1]] }
   ];
   function route(attrs, publisher) {
     const ctx = Object.assign({ publisher: publisher }, attrs);
@@ -158,7 +168,7 @@ window.TL = window.TL || {};
     ['sfo', 'k8s', 2], ['sfo', 'vm', 2],
     ['sgp', 'metal', 1], ['sgp', 'edge', 2], ['sgp', 'vm', 2]
   ];
-  const BASE_RATE = { 'ubuntu-report': 40, snapd: 300, livepatch: 90, landscape: 650, juju: 1300, maas: 520, microcloud: 800, attest: 220 };
+  const BASE_RATE = { livepatch: 260, landscape: 650, juju: 1300, maas: 520, microcloud: 800, attest: 220 };
   const TYPE_SCALE = { metal: 1.5, k8s: 1.2, vm: 0.8, edge: 0.6 };
 
   plan.forEach(function (p) {
@@ -172,7 +182,7 @@ window.TL = window.TL || {};
       a.jaas = a.juju === 'none' ? 'none' : (chance(0.25) ? 'jaas' : 'self');
       a.sovereignty = REGION_SOV[region] && chance(0.55) ? REGION_SOV[region] : 'none';
       a.confidential = (type === 'vm' || type === 'k8s') && chance(0.3) ? pick({ tdx: 60, snp: 40 }) : 'none';
-      a.consent = chance(0.15) ? 'optout' : 'optin';
+      a.consent = chance(0.08) ? 'optout' : 'optin';
       const extras = { landscape: chance(0.5), livepatch: chance(0.6) };
 
       const changes = [];
@@ -208,13 +218,14 @@ window.TL = window.TL || {};
     return a;
   }
   function publishersFor(d, a) {
-    const out = ['ubuntu-report', 'snapd'];
+    const out = [];
     if (d.extras.livepatch) out.push('livepatch');
     if (d.extras.landscape) out.push('landscape');
     if (a.juju !== 'none') out.push('juju');
     if (a.maas !== 'none') out.push('maas');
     if (a.microcloud === 'member') out.push('microcloud');
     if (a.confidential !== 'none') out.push('attest');
+    if (!out.length) out.push('livepatch'); // every device runs at least one publishing snap
     return out;
   }
 
@@ -276,6 +287,11 @@ window.TL = window.TL || {};
   Object.assign(TL, {
     MONTHS: MONTHS, monthLabel: monthLabel,
     ATTRIBUTES: ATTRIBUTES, DIMENSIONS: DIMENSIONS, ROUTING: ROUTING,
+    // shared infrastructure every flow passes through (drawn between columns)
+    WAYPOINTS: [
+      { after: 'publisher', label: 'snapd', sub: 'one stream per device' },
+      { after: 'policy', label: 'Telemetry endpoint', sub: 'demultiplex · route · forward' }
+    ],
     DEVICES: DEVICES, VIEWS: VIEWS, GROUP_BYS: GROUP_BYS,
     PIPELINE: ['publisher', 'policy', 'destination'],
     snapshot: snapshot, deviceAt: deviceAt,

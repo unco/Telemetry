@@ -13,7 +13,7 @@
 
   const TABS = [
     { id: 1, label: 'View', groupBy: false, comments: false, time: false,
-      intro: 'Each device’s telemetry flows through a publisher, a policy and a destination. A view colours every device — and its flows all the way through — by one attribute, e.g. its Juju version. Click a colour to isolate it; hover or click any node to trace its path.' },
+      intro: 'Each snap on a device publishes telemetry to snapd, which merges it into one stream for the telemetry endpoint; the endpoint applies policy and forwards it to a destination. A view colours every device — and its flows all the way through — by one attribute, e.g. its Juju version. Click a colour to isolate it; hover or click any node to trace its path.' },
     { id: 2, label: 'View + group by', groupBy: true, comments: false, time: false,
       intro: 'Group by replaces the device column with streams per value (e.g. Juju 4.1 / 3.6 / none). Publisher, policy and destination stay exactly the same. Use the chips to filter streams in or out.' },
     { id: 3, label: '+ Comments', groupBy: true, comments: true, time: false,
@@ -179,6 +179,7 @@
     }
 
     S.render(el.svg, L, {
+      waypoints: waypoints(stg, L),
       palette: palette(),
       isolate: state.isolate[state.view] || null,
       focusId: state.hover || state.selected,
@@ -195,9 +196,21 @@
     if (t.comments) drawComments(); else el.comments.hidden = true;
   }
 
+  // x positions of shared pipeline steps, midway between the columns they sit between
+  function waypoints(stg, L) {
+    return TL.WAYPOINTS.map(function (w) {
+      const i = stg.indexOf(w.after);
+      const a = L.nodes.filter(function (n) { return n.col === i; })[0];
+      const b = L.nodes.filter(function (n) { return n.col === i + 1; })[0];
+      return a && b ? Object.assign({ x: (a.x + a.w + b.x) / 2 }, w) : null;
+    }).filter(Boolean);
+  }
   function drawLegend(stg, L) {
     el.legend.style.width = L.width + 'px';
-    el.legend.innerHTML = stg.map(function (d, i) {
+    const wps = waypoints(stg, L).map(function (w) {
+      return '<span class="chart-legend__wp" style="left:' + w.x + 'px" title="' + esc(w.sub) + '"><strong>' + esc(w.label) + '</strong></span>';
+    }).join('');
+    el.legend.innerHTML = wps + stg.map(function (d, i) {
       const n = L.nodes.filter(function (x) { return x.col === i; })[0];
       const label = d === 'device' ? 'Device' : TL.DIMENSIONS[d].label;
       return '<span class="chart-legend__col' + (i === stg.length - 1 ? ' is-last' : '') + (i === 0 ? ' is-first' : '') + '" style="left:' + (n ? n.x : 0) + 'px">' + esc(label) + '</span>';
@@ -431,8 +444,9 @@
       body = segBreakdown(n.seg, n.value);
     }
     if (n.dim === 'policy') {
-      const rules = TL.ROUTING.filter(function (r) { return r.policy === n.val; }).map(function (r) { return r.id; });
-      body += '<div class="tooltip__hint">Routing rule ' + rules.join(', ') + '</div>';
+      const rules = TL.ROUTING.filter(function (r) { return r.policy === n.val; });
+      body += '<div class="tooltip__hint">Rule ' + rules.map(function (r) { return r.id; }).join(', ') + ' · applied ' +
+        (rules[0].at === 'snapd' ? 'on the device by snapd' : 'at the telemetry endpoint') + '</div>';
     }
     const cnt = tab().comments ? (TL.comments.counts(ctx())[id] || 0) : 0;
     return '<div class="tooltip__dim">' + esc(TL.DIMENSIONS[n.dim].label) + (v.canonical ? ' · <span class="canon">◆ Canonical</span>' : '') + '</div>' +

@@ -3,8 +3,16 @@
 A dependency-free prototype of the **Insights** page for Ubuntu telemetry. It shows how telemetry flows through the pipeline:
 
 ```
-[ column 1 ]  →  Publisher  →  Policy  →  Destination
+[ column 1 ]  →  Publisher (snap)  →  Policy  →  Destination
+                                 ┆ snapd      ┆ telemetry endpoint
 ```
+
+**Architecture:**
+1. Every snap on a device hands its telemetry to **snapd**.
+2. snapd enforces naming and on-device rules, then merges all snaps into **one stream** to the **telemetry endpoint**.
+3. The endpoint splits the stream back out by snap, applies routing policy and forwards each flow to its destination.
+
+snapd and the endpoint are drawn as dashed markers between the columns. Every flow passes through them, so neither needs a column of its own. Each policy rule records where it's applied: `at: 'snapd'` (on the device) or `at: 'endpoint'`.
 
 **Only column 1 changes.**
 - With **no group-by**, column 1 has one node per **device**.
@@ -39,8 +47,9 @@ Group-by can use any of these attributes, plus device type, region and Ubuntu re
 
 ```
 ATTRIBUTES    { attr → { label, values: [{ id, label, color? }] } }   // device vocabulary; no colour = neutral
-PUBLISHERS / POLICIES / DESTINATIONS                                 // pipeline vocabularies
-ROUTING       [{ id, when: {attr|publisher: value|[values]}, policy, to: [[destination, share]] }]
+PUBLISHERS / POLICIES / DESTINATIONS                                 // publishers are snaps (snap names)
+WAYPOINTS     [{ after: 'publisher'|'policy', label }]                // snapd, telemetry endpoint
+ROUTING       [{ id, at: 'snapd'|'endpoint', when: {attr|publisher: value|[values]}, policy, to: [[destination, share]] }]
               // ordered, first match wins — auditable and easy to change
 DEVICES       [{ id, attrs, extras, onboarded, scale, growth,
                  changes: [{ month, attrs, note }] }]                 // upgrades, migrations, policy moves
@@ -53,7 +62,7 @@ GROUP_BYS     ['device', …attributes]
 - Node ids are `"<dimension>:<value>"` (e.g. `juju:3.6`, `device:fra-metal-01`, `policy:eu-res`). They stay the same across time, views and group-bys.
 - Columns are top-aligned, so the top stream runs horizontally and lower streams rise into it. Node order is fixed, so playback doesn't reshuffle.
 
-The routing rules deliberately contain a realistic flaw. Rule R2 (attestation evidence) comes before R4 (EU residency), so a little telemetry from EU-sovereign devices reaches the global destination. The Sovereignty view makes this visible, and a seeded comment flags it.
+The routing rules deliberately contain a realistic flaw. Rule R2 (attestation evidence, applied at the endpoint) comes before R4 (EU residency), so a little telemetry from EU-sovereign devices reaches the global destination. The Sovereignty view makes this visible, and a seeded comment flags it.
 
 ## Comments (`js/comments.js`)
 

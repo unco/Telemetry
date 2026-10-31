@@ -20,7 +20,7 @@
  */
 (function (TL) {
   'use strict';
-  const KEY = 'tl.insights.comments.v2';
+  const KEY = 'tl.insights.comments.v3';
 
   const SEED = [
     { anchor: { view: 'juju', groupBy: 'juju', node: 'juju:2.9', period: null },
@@ -32,7 +32,7 @@
     { anchor: { view: 'jaas', groupBy: 'jaas', node: 'jaas:jaas', period: '2026-04' },
       author: 'Product · JAAS', body: 'Most JAAS growth is existing self-hosted controllers moving over, not net-new Juju users.' },
     { anchor: { view: 'maas', groupBy: 'device', node: 'publisher:maas', period: null },
-      author: 'Telemetry team', body: 'MAAS agent is the second-largest publisher by volume. Worth checking the sampling rate.' },
+      author: 'Telemetry team', body: 'The maas snap is one of the largest publishers by volume. Worth checking its sampling rate in snapd.' },
     { anchor: { view: 'microcloud', groupBy: 'type', node: 'type:edge', period: null },
       author: 'Product · MicroCloud', body: 'Edge gateways are where MicroCloud adoption is concentrated.' },
     { anchor: { view: 'sovereignty', groupBy: 'sovereignty', node: 'destination:canonical-global', period: null },

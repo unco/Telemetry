@@ -162,7 +162,12 @@
       });
       return out;
     }
-    const parts = ['<g class="sk-links">'];
+    const parts = [];
+    // shared pipeline steps (snapd, telemetry endpoint) as dashed lanes behind the flows
+    (opts.waypoints || []).forEach(function (w) {
+      parts.push('<line class="sk-waypoint" x1="' + w.x + '" x2="' + w.x + '" y1="0" y2="' + L.height + '"/>');
+    });
+    parts.push('<g class="sk-links">');
     L.links.forEach(function (l) {
       parts.push('<g class="sk-link' + (focusing ? ' is-focusing' : '') + (focusing && l.f < 0.01 ? ' is-dim' : '') + '" data-link="' + esc(l.key) + '">');
       parts.push('<path class="sk-link__base" d="' + band(l, 0, l.w) + '"/>');

@@ -124,7 +124,7 @@ body[data-tab="3"] .insights__body, body[data-tab="4"] .insights__body { grid-te
 .p-card { border: 1px solid var(--border); background: #fff; }
 .insights__chart { padding: 16px 16px 8px; min-width: 0; }
 .chart-wrap { width: 100%; overflow-x: auto; }
-.chart-legend { position: relative; height: 22px; margin-bottom: 4px; font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.chart-legend { position: relative; height: 42px; margin-bottom: 4px; font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
 .chart-legend__col { position: absolute; top: 0; white-space: nowrap; }
 .chart-legend__col.is-first { color: var(--ink); font-weight: 500; }
 
@@ -241,3 +241,10 @@ body[data-tab="3"] .insights__body, body[data-tab="4"] .insights__body { grid-te
 .tooltip__attrs dd { margin: 0; }
 .tooltip__attrs dd.is-view { color: #ffb38f; font-weight: 600; }
 .tooltip__hist { margin-top: 6px; padding-top: 6px; border-top: 1px solid #333; color: #ddd; font-size: .75rem; }
+
+/* Shared pipeline steps (snapd, telemetry endpoint) */
+.sk-waypoint { stroke: #6b6b6b; stroke-width: 1; stroke-dasharray: 4 4; opacity: .55; }
+.chart-legend__wp { position: absolute; top: 0; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; text-transform: none; letter-spacing: 0; line-height: 1.25; white-space: nowrap; }
+.chart-legend__wp strong { font-family: "Ubuntu Sans Mono", ui-monospace, monospace; font-weight: 500; font-size: .75rem; color: var(--text); border: 1px dashed #8a8a8a; padding: 0 6px; background: #fff; }
+.chart-legend__wp span { font-size: .6875rem; color: var(--faint); }
+.chart-legend__col { top: 22px; }
