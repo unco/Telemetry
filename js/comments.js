@@ -34,7 +34,7 @@
     { anchor: { view: 'maas', groupBy: 'device', node: 'publisher:maas', period: null },
       author: 'Telemetry team', body: 'The maas snap is one of the largest publishers by volume. Worth checking its sampling rate in snapd.' },
     { anchor: { view: 'microcloud', groupBy: 'type', node: 'type:edge', period: null },
-      author: 'Product · MicroCloud', body: 'Edge gateways are where MicroCloud adoption is concentrated.' },
+      author: 'Product · MicroCloud', body: 'Edge devices are where MicroCloud adoption is concentrated.' },
     { anchor: { view: 'sovereignty', groupBy: 'sovereignty', node: 'destination:canonical-global', period: null },
       author: 'Security engineering', body: 'EU-sovereign devices still reach the global destination via rule R2 (attestation evidence, 30% share). Rule order needs fixing so residency wins.' },
     { anchor: { view: 'sovereignty', groupBy: 'device', node: 'policy:eu-res', period: '2026-05' },
