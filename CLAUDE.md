@@ -1,6 +1,6 @@
 # Context for Claude sessions
 
-Prototype of the **Insights** page (Telemetry product): a Sankey shown as four demo tabs. See README.md for the data model.
+Prototype of the **Insights** page (Telemetry product): a single-page Sankey. See README.md for the data model.
 
 ## Telemetry architecture (as described by the product owner)
 - Every snap on a device sends its telemetry to **snapd**.
@@ -28,6 +28,7 @@ Prototype of the **Insights** page (Telemetry product): a Sankey shown as four d
 - No intro/description text and no "synthetic data" note under the page header.
 - **Group by** replaces the device column with that attribute's values (e.g. Juju 4.1 / 3.6 / none); publisher, policy and destination stay intact.
 - Single page, no tabs: view + group by + comments + timeline all available. Opens on Neutral view, devices ungrouped, "Compare to: nothing" (no deltas until chosen). "Reset comments" is a footer link.
+- No snapd / telemetry endpoint markers in the chart (removed at the user's request).
 - Columns top-aligned (top stream horizontal, others rise into it); flows fairly transparent.
 
 ## Deployment

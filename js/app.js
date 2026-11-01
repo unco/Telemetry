@@ -180,7 +180,6 @@
 
     el.svg.classList.toggle('is-neutral', isNeutral());
     S.render(el.svg, L, {
-      waypoints: waypoints(stg, L),
       palette: palette(),
       isolate: state.isolate[state.view] || null,
       focusId: state.hover || state.selected,
@@ -197,21 +196,9 @@
     if (t.comments) drawComments(); else el.comments.hidden = true;
   }
 
-  // x positions of shared pipeline steps, midway between the columns they sit between
-  function waypoints(stg, L) {
-    return TL.WAYPOINTS.map(function (w) {
-      const i = stg.indexOf(w.after);
-      const a = L.nodes.filter(function (n) { return n.col === i; })[0];
-      const b = L.nodes.filter(function (n) { return n.col === i + 1; })[0];
-      return a && b ? Object.assign({ x: (a.x + a.w + b.x) / 2 }, w) : null;
-    }).filter(Boolean);
-  }
   function drawLegend(stg, L) {
     el.legend.style.width = L.width + 'px';
-    const wps = waypoints(stg, L).map(function (w) {
-      return '<span class="chart-legend__wp" style="left:' + w.x + 'px" title="' + esc(w.sub) + '"><strong>' + esc(w.label) + '</strong></span>';
-    }).join('');
-    el.legend.innerHTML = wps + stg.map(function (d, i) {
+    el.legend.innerHTML = stg.map(function (d, i) {
       const n = L.nodes.filter(function (x) { return x.col === i; })[0];
       const label = d === 'device' ? 'Device' : TL.DIMENSIONS[d].label;
       return '<span class="chart-legend__col' + (i === stg.length - 1 ? ' is-last' : '') + (i === 0 ? ' is-first' : '') + '" style="left:' + (n ? n.x : 0) + 'px">' + esc(label) + '</span>';

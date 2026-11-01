@@ -12,7 +12,7 @@ A dependency-free prototype of the **Insights** page for Ubuntu telemetry. It sh
 2. snapd enforces naming and on-device rules, then merges all snaps into **one stream** to the **telemetry endpoint**.
 3. The endpoint splits the stream back out by snap, applies routing policy and forwards each flow to its destination.
 
-snapd and the endpoint are drawn as dashed markers between the columns. Every flow passes through them, so neither needs a column of its own. Each policy rule records where it's applied: `at: 'snapd'` (on the device) or `at: 'endpoint'`.
+snapd and the endpoint aren't drawn in the chart. Every flow passes through them, so they'd add no information. Each policy rule records where it's applied: `at: 'snapd'` (on the device) or `at: 'endpoint'`.
 
 **Only column 1 changes.**
 - With **no group-by**, column 1 has one node per **device**.
@@ -120,7 +120,6 @@ Group-by can use any of these attributes, plus site, device type, region and Ubu
 ```
 ATTRIBUTES    { attr → { label, values: [{ id, label, color? }] } }   // device vocabulary; no colour = neutral
 PUBLISHERS / POLICIES / DESTINATIONS                                 // publishers are snaps (snap names)
-WAYPOINTS     [{ after: 'publisher'|'policy', label }]                // snapd, telemetry endpoint
 ROUTING       [{ id, at: 'snapd'|'endpoint', when: {attr|publisher: value|[values]}, policy, to: [[destination, share]] }]
               // ordered, first match wins — auditable and easy to change
 DEVICES       [{ id, attrs, extras, onboarded, scale, growth,

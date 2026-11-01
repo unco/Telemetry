@@ -466,11 +466,6 @@ window.TL = window.TL || {};
   Object.assign(TL, {
     MONTHS: MONTHS, monthLabel: monthLabel,
     ATTRIBUTES: ATTRIBUTES, DIMENSIONS: DIMENSIONS, ROUTING: ROUTING, PALETTE: PALETTE, HEALTH_COMPONENTS: HEALTH_COMPONENTS, HEALTH_RAMP: HEALTH_RAMP,
-    // shared infrastructure every flow passes through (drawn between columns)
-    WAYPOINTS: [
-      { after: 'publisher', label: 'snapd', sub: 'one stream per device' },
-      { after: 'policy', label: 'Telemetry endpoint', sub: 'demultiplex · route · forward' }
-    ],
     DEVICES: DEVICES, VIEWS: VIEWS, GROUP_BYS: GROUP_BYS,
     PIPELINE: ['publisher', 'policy', 'destination'],
     snapshot: snapshot, deviceAt: deviceAt,
