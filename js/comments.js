@@ -20,9 +20,11 @@
  */
 (function (TL) {
   'use strict';
-  const KEY = 'tl.insights.comments.v7';
+  const KEY = 'tl.insights.comments.v8';
 
   const SEED = [
+    { anchor: { view: 'health', groupBy: 'health', node: 'health:21-30', period: null },
+      author: 'Plant IT · London', body: 'This is ldn-plant-04: still on 20.04 and unpatched since the line was retooled. Booked for rebuild next month.' },
     { anchor: { view: 'juju', groupBy: 'juju', node: 'juju:2.9', period: null },
       author: 'Platform engineering', body: 'These are the last Juju 2.9 deployments. Can we export the device list for the upgrade backlog?' },
     { anchor: { view: 'juju', groupBy: 'juju', node: 'juju:4.1', period: '2026-06' },

@@ -229,11 +229,22 @@
       return '<span class="p-dist__seg" style="flex:' + c + ';background:' + (v.color || '#d3d3d3') + '" title="' + esc(v.label) + ': ' + c + '"></span>';
     }).join('');
     const iso = state.isolate[state.view];
-    const kv = iso ? a.values.filter(function (x) { return x.id === iso; })[0] : a.values[0];
-    const share = counts._total ? (counts[kv.id] || 0) / counts._total * 100 : 0;
-    items.push(kpi('<span class="dot" style="background:' + (kv.color || '#999') + '"></span>' + esc(kv.label),
-      share.toFixed(0) + '% <span class="p-kpi__unit">of devices</span>',
-      '<span class="p-dist">' + bar + '</span>', t.time ? sparkline(kv) : ''));
+    if (view().attr === 'health' && !iso) {
+      // health is a score: show the fleet average and its trend
+      const avg = avgHealth(pi);
+      const band = TL.valueOf('health', bandOf(avg));
+      items.push(kpi('<span class="dot" style="background:' + band.color + '"></span>Average health',
+        Math.round(avg) + ' <span class="p-kpi__unit">/ 100</span>',
+        '<span class="p-dist">' + bar + '</span>',
+        t.time ? sparkline(TL.MONTHS.map(function (_, m) { return avgHealth(m); }), band.color) : ''));
+    } else {
+      const kv = iso ? a.values.filter(function (x) { return x.id === iso; })[0] : a.values[0];
+      const share = counts._total ? (counts[kv.id] || 0) / counts._total * 100 : 0;
+      items.push(kpi('<span class="dot" style="background:' + (kv.color || '#999') + '"></span>' + esc(kv.label),
+        share.toFixed(0) + '% <span class="p-kpi__unit">of devices</span>',
+        '<span class="p-dist">' + bar + '</span>',
+        t.time ? sparkline(TL.MONTHS.map(function (_, m) { const c = deviceCounts(m, view().attr); return c._total ? (c[kv.id] || 0) / c._total * 100 : 0; }), kv.color || '#666') : ''));
+    }
     const focusId = state.hover || state.selected;
     if (focusId && agg.nodes[focusId]) {
       const n = agg.nodes[focusId];
@@ -248,10 +259,22 @@
   function kpi(label, value, sub, extra, wide) {
     return '<div class="p-kpi' + (wide ? ' p-kpi--wide' : '') + '"><div class="p-kpi__label">' + label + '</div><div class="p-kpi__value">' + value + '</div><div class="p-kpi__sub">' + sub + '</div>' + (extra || '') + '</div>';
   }
-  function sparkline(kv) {
-    const vals = TL.MONTHS.map(function (_, m) { const c = deviceCounts(m, view().attr); return c._total ? (c[kv.id] || 0) / c._total * 100 : 0; });
+  // average health score of the (filtered) devices reporting in month m
+  function avgHealth(m) {
+    const seen = {}, f = filterFn(); let sum = 0, n = 0;
+    TL.snapshot(m).forEach(function (x) {
+      if (seen[x.device] || (f && !f(x))) return;
+      seen[x.device] = 1; sum += x.healthScore; n++;
+    });
+    return n ? sum / n : 0;
+  }
+  function bandOf(score) {
+    score = Math.round(score);
+    return TL.ATTRIBUTES.health.values.filter(function (v) { return score >= v.lo && score <= v.hi; })[0].id;
+  }
+  function sparkline(vals, col) {
     const min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
-    const W = 120, H = 30, rng = (max - min) || 1, col = kv.color || '#666';
+    const W = 120, H = 30, rng = (max - min) || 1;
     const pts = vals.map(function (v, i) { return (i / LAST * W).toFixed(1) + ',' + (H - 3 - (v - min) / rng * (H - 6)).toFixed(1); });
     const cx = month() / LAST * W, iy = H - 3 - (vals[periodIndex()] - min) / rng * (H - 6);
     return '<svg class="p-kpi__spark" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" aria-hidden="true">' +
@@ -435,7 +458,15 @@
     if (n.dim === 'device') {
       const d = TL.deviceAt(n.val, periodIndex());
       const a = d.attrs;
-      body = '<dl class="tooltip__attrs">' + ['site', 'type', 'region', 'juju', 'jaas', 'maas', 'microcloud', 'sovereignty', 'confidential', 'release'].map(function (k) {
+      const band = TL.valueOf('health', a.health);
+      body = '<div class="tooltip__health"><span class="dot" style="background:' + band.color + '"></span>Health <strong>' + a.healthScore + '</strong> <span class="tooltip__band">(' + band.label + ')</span></div>';
+      if (view().attr === 'health') {
+        body += '<dl class="tooltip__parts">' + TL.HEALTH_COMPONENTS.map(function (c) {
+          const v = Math.round(a.healthParts[c.id]);
+          return '<dt>' + esc(c.label) + ' <span>' + Math.round(c.weight * 100) + '%</span></dt><dd><span class="tooltip__bar"><span style="width:' + v + '%;background:' + TL.valueOf('health', bandOf(v)).color + '"></span></span>' + v + '</dd>';
+        }).join('') + '</dl>';
+      }
+      body += '<dl class="tooltip__attrs">' + ['site', 'type', 'region', 'juju', 'jaas', 'maas', 'microcloud', 'sovereignty', 'confidential', 'release'].map(function (k) {
         return '<dt>' + esc(TL.ATTRIBUTES[k].short) + '</dt><dd' + (k === view().attr ? ' class="is-view"' : '') + '>' + esc(TL.valueOf(k, a[k]).label) + '</dd>';
       }).join('') + '</dl>';
       const hist = d.changes.filter(function (c) { return c.month <= periodIndex(); });

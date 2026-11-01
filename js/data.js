@@ -122,13 +122,27 @@ window.TL = window.TL || {};
       { id: 'fra', label: 'Frankfurt' }, { id: 'par', label: 'Paris' }, { id: 'ldn', label: 'London' },
       { id: 'nyc', label: 'New York' }, { id: 'sfo', label: 'San Francisco' }, { id: 'sgp', label: 'Singapore' }] },
     release: { label: 'Ubuntu release', short: 'Release', values: [
-      { id: '2204', label: 'Ubuntu 22.04 LTS' }, { id: '2404', label: 'Ubuntu 24.04 LTS' }, { id: '2604', label: 'Ubuntu 26.04 LTS' }] }
+      { id: '2004', label: 'Ubuntu 20.04 (ESM)' }, { id: '2204', label: 'Ubuntu 22.04 LTS' }, { id: '2404', label: 'Ubuntu 24.04 LTS' }, { id: '2604', label: 'Ubuntu 26.04 LTS' }] }
   };
+
+  // Health bands use a diverging gradient built from the palette's own hues:
+  // palette rust (#79331A, #AC4E2A, #BC6D4C) for the worst bands, lightening
+  // to a neutral taupe/olive in the middle, then palette teal (#63998C)
+  // darkening to deep teal for the healthiest. Intermediate steps were
+  // interpolated in OKLCH so lightness mirrors either side of the middle and
+  // adjacent bands are roughly equal visual steps apart.
+  const HEALTH_RAMP = ['#79331A', '#AC4E2A', '#BC6D4C', '#BD876F', '#BE9D87', '#A7A880', '#8B9D75', '#63998C', '#3E786C', '#1C5B52'];
+  const HEALTH_BANDS = HEALTH_RAMP.map(function (c, i) {
+    const lo = i === 0 ? 0 : i * 10 + 1, hi = (i + 1) * 10;
+    return { id: lo + '-' + hi, label: lo + '–' + hi, color: c, lo: lo, hi: hi };
+  }).reverse(); // healthiest first
+  ATTRIBUTES.health = { label: 'Health', short: 'Health', ordinal: true, values: HEALTH_BANDS };
+  function healthBand(score) { return score <= 10 ? '0-10' : (Math.floor((score - 1) / 10) * 10 + 1) + '-' + (Math.floor((score - 1) / 10) * 10 + 10); }
 
   // assign palette colours: values marked `color: true` take the next colour
   // from the row matching the number of coloured values in that attribute
   Object.keys(ATTRIBUTES).forEach(function (k) {
-    const coloured = ATTRIBUTES[k].values.filter(function (v) { return v.color; });
+    const coloured = ATTRIBUTES[k].values.filter(function (v) { return v.color === true; });
     const row = paletteFor(coloured.length);
     coloured.forEach(function (v, i) { v.color = row[i]; });
   });
@@ -277,10 +291,58 @@ window.TL = window.TL || {};
     const layers = (a.maas !== 'none') + (a.microcloud === 'member') + (a.juju !== 'none');
     return a.juju !== 'none' && layers >= 2 ? 'full' : layers >= 1 ? 'partial' : 'none';
   }
+  // ---- Health: a composite 0–100 score per device per month ----------
+  // Weighted components (each 0–100). Edit weights or inputs here.
+  const HEALTH_COMPONENTS = [
+    { id: 'patch', label: 'Security patch currency', weight: 0.25 },
+    { id: 'snaps', label: 'Snap refresh currency', weight: 0.20 },
+    { id: 'release', label: 'Release support', weight: 0.15 },
+    { id: 'reporting', label: 'Reporting regularity', weight: 0.15 },
+    { id: 'policy', label: 'Policy compliance', weight: 0.15 },
+    { id: 'stability', label: 'Stability (crash rate)', weight: 0.10 }
+  ];
+  DEVICES.forEach(function (d, i) {
+    const r = mulberry32(7919 * (i + 1));
+    const neglected = r() < 0.2; // devices nobody is looking after
+    const ageing = !neglected && r() < 0.3; // patched, but slowly
+    const edge = d.attrs.site === 'store' || d.attrs.site === 'factory';
+    if (neglected && r() < 0.6) { // still on 20.04, never upgraded
+      d.attrs.release = '2004';
+      d.changes = d.changes.filter(function (c) { return !c.attrs.release; });
+    }
+    d.health = {
+      patch: neglected ? r() * 20 : ageing ? 35 + r() * 25 : (edge ? 65 : 80) + r() * 20,
+      snaps: neglected ? r() * 25 : ageing ? 40 + r() * 25 : 65 + r() * 30,
+      reporting: neglected ? 10 + r() * 40 : (edge ? 70 : 85) + r() * 15,
+      policy: neglected ? 20 + r() * 30 : null, // stale consent / policy settings
+      stability: neglected ? 40 + r() * 40 : 75 + r() * 25,
+      improve: neglected ? (r() < 0.4 ? 5 : 0) : ageing ? r() * 1.5 : r() * 0.8, // points per month as patching catches up
+      incident: r() < 0.3 ? Math.floor(r() * 12) : -1,          // one bad month
+      noise: r
+    };
+    d.health.noiseByMonth = MONTHS.map(function () { return (d.health.noise() - 0.5) * 8; });
+  });
+  function healthAt(d, a, m) {
+    const h = d.health, clamp = function (x) { return Math.max(0, Math.min(100, x)); };
+    const parts = {
+      patch: clamp(h.patch + h.improve * m + h.noiseByMonth[m]),
+      snaps: clamp(h.snaps + h.improve * m * 0.8 - (a.juju === '2.9' ? 20 : 0)),
+      release: a.release === '2604' ? 100 : a.release === '2404' ? 90 : a.release === '2204' ? 65 : 15,
+      reporting: a.consent === 'optout' ? 20 : h.incident === m ? 35 : clamp(h.reporting + h.noiseByMonth[m]),
+      policy: h.policy != null ? h.policy : (REGION_SOV[a.region] && a.sovereignty === 'none') ? 55 : a.consent === 'optout' ? 60 : 95,
+      stability: h.incident === m ? 5 : clamp(h.stability + h.noiseByMonth[m])
+    };
+    let score = 0;
+    HEALTH_COMPONENTS.forEach(function (c) { score += parts[c.id] * c.weight; });
+    return { score: Math.round(clamp(score)), parts: parts };
+  }
+
   function attrsAt(d, m) {
     const a = Object.assign({}, d.attrs);
     d.changes.forEach(function (c) { if (c.month <= m) Object.assign(a, c.attrs); });
     a.stack = deriveStack(a);
+    const h = healthAt(d, a, m);
+    a.healthScore = h.score; a.healthParts = h.parts; a.health = healthBand(h.score);
     return a;
   }
   function publishersFor(d, a) {
@@ -355,6 +417,7 @@ window.TL = window.TL || {};
   // ---- Views & group-bys ----------------------------------------------
   // A view = one attribute to colour by + the question it answers.
   const VIEWS = [
+    { id: 'health', attr: 'health', label: 'Health', question: 'How healthy is each device, and where does telemetry from unhealthy devices go?' },
     { id: 'juju', attr: 'juju', label: 'Juju', question: 'Which Juju version is each device running, and where does that telemetry go?' },
     { id: 'jaas', attr: 'jaas', label: 'JAAS', question: 'Which devices are managed through JAAS versus self-hosted controllers?' },
     { id: 'maas', attr: 'maas', label: 'MAAS', question: 'Which devices are provisioned by MAAS, and on which version?' },
@@ -363,11 +426,11 @@ window.TL = window.TL || {};
     { id: 'sovereignty', attr: 'sovereignty', label: 'Telemetry residency', question: 'Which residency rule does each device’s telemetry follow, and where does it end up?' },
     { id: 'confidential', attr: 'confidential', label: 'Confidential compute', question: 'Which devices run confidential VMs, and where does their payment telemetry go?' }
   ];
-  const GROUP_BYS = ['device', 'site', 'juju', 'jaas', 'maas', 'microcloud', 'stack', 'sovereignty', 'confidential', 'type', 'region', 'release'];
+  const GROUP_BYS = ['device', 'health', 'site', 'juju', 'jaas', 'maas', 'microcloud', 'stack', 'sovereignty', 'confidential', 'type', 'region', 'release'];
 
   Object.assign(TL, {
     MONTHS: MONTHS, monthLabel: monthLabel,
-    ATTRIBUTES: ATTRIBUTES, DIMENSIONS: DIMENSIONS, ROUTING: ROUTING, PALETTE: PALETTE,
+    ATTRIBUTES: ATTRIBUTES, DIMENSIONS: DIMENSIONS, ROUTING: ROUTING, PALETTE: PALETTE, HEALTH_COMPONENTS: HEALTH_COMPONENTS, HEALTH_RAMP: HEALTH_RAMP,
     // shared infrastructure every flow passes through (drawn between columns)
     WAYPOINTS: [
       { after: 'publisher', label: 'snapd', sub: 'one stream per device' },

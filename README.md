@@ -51,6 +51,32 @@ Policy rules route these by sensitivity:
 - factory and sensor data follow the OT policy to observability and ITSM (R7),
 - payment data is PCI scope, attested only (R2).
 
+## Health
+
+Health is a composite score from 0 to 100 per device per month, made of weighted components (`HEALTH_COMPONENTS` in `js/data.js`):
+
+| Component | Weight |
+|---|---|
+| Security patch currency | 25% |
+| Snap refresh currency | 20% |
+| Release support (26.04 = 100 … 20.04 ESM = 15) | 15% |
+| Reporting regularity | 15% |
+| Policy compliance | 15% |
+| Stability (crash rate) | 10% |
+
+The score is shown in ten bands: 0–10, 11–20 … 91–100.
+
+**Colours.** The bands use a diverging gradient built from the design palette:
+- **Worst bands:** the palette's rusts (`#79331A`, `#AC4E2A`, `#BC6D4C`).
+- **Middle bands:** a neutral taupe and olive.
+- **Best bands:** the palette teal (`#63998C`), darkening to deep teal.
+
+The intermediate steps were interpolated in OKLCH. Lightness mirrors either side of the middle, and adjacent bands are roughly equal visual steps apart.
+
+**In the interface:**
+- The KPI shows the fleet's average score, with its monthly trend on the Over time tab.
+- In the Health view, each device's tooltip breaks the score down by component.
+
 ## Views
 
 | View | Colours devices by | Values |

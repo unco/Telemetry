@@ -15,6 +15,10 @@ Prototype of the **Insights** page (Telemetry product): a Sankey shown as four d
 - Destinations are the customer's own systems (observability, data lakes, SIEM, CMDB, ITSM, Landscape, archive), not Canonical services.
 - Goal is to show where data goes and why. Zone-crossing flags / "leaving its zone" KPIs are explicitly not an objective.
 
+## Health
+- Health = composite 0–100 "magic number" from weighted components, shown in bands of 10 (0–10, 11–20 … 91–100).
+- Health uses an adjacent/gradient colour scale (diverging rust → taupe/olive → teal, derived from the design palette), not the contrasting categorical palette.
+
 ## Sankey rules agreed with the user
 - Columns are fixed: **Device → Publisher → Policy → Destination**. Only column 1 changes.
 - A **view** colours devices (and their flows end to end) by one attribute, e.g. Juju version. Views never change columns.
