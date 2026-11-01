@@ -219,12 +219,48 @@ body[data-tab="3"] .insights__body, body[data-tab="4"] .insights__body { grid-te
   .comment-panel { position: static; max-height: none; }
 }
 @media (max-width: 760px) {
-  .l-app { grid-template-columns: 1fr; }
-  .l-nav { position: static; height: auto; flex-direction: row; overflow-x: auto; }
-  .l-nav__list--bottom, .l-nav__brand { display: none; }
-  .l-nav__list { display: flex; }
-  .l-main { padding: 16px; }
+  .l-app { display: block; background: #fff; }
+  /* side nav slides out of view; opened from the top bar */
+  .l-topbar { display: flex; }
+  .l-nav { position: fixed; z-index: 30; top: 0; left: 0; bottom: 0; width: 260px; height: 100%; transform: translateX(-100%); transition: transform .2s ease; overflow-y: auto; padding-top: 8px; }
+  body.nav-open .l-nav { transform: none; box-shadow: 4px 0 16px rgba(0,0,0,.3); }
+  body.nav-open { overflow: hidden; }
+  .l-main { padding: 16px 16px 40px; }
+  .p-page-header { flex-direction: column; gap: 8px; }
+  .p-page-header__actions { align-self: stretch; }
+  .p-page-header__actions .p-button { font-size: .875rem; padding: 4px 10px; }
+  .p-heading { font-size: 1.75rem; }
+  .p-subtitle { font-size: .9375rem; }
+  .p-tabs__item { margin-right: 16px; padding-right: 8px; }
+  .p-tab-intro { font-size: .875rem; }
+  /* controls */
+  .p-toolbar { gap: 14px; }
+  .p-toolbar > .p-field { width: 100%; }
+  .p-segmented { display: flex; overflow-x: auto; max-width: 100%; scrollbar-width: none; }
+  .p-segmented::-webkit-scrollbar { display: none; }
+  .p-segmented__item { flex: none; }
+  .p-select { width: 100%; }
+  .p-group-filter { padding: 10px; }
+  .p-group-filter__label { width: 100%; }
+  .p-search { width: 100%; margin-left: 0; }
+  .p-question { font-size: 1rem; }
+  /* KPIs stack */
+  .p-kpis { grid-template-columns: 1fr; }
+  .p-kpi { min-height: 0; padding: 10px 0; }
+  .p-kpi + .p-kpi { padding-left: 0; border-left: 0; border-top: 1px solid var(--border); }
+  .p-kpi__spark { top: 14px; right: 0; }
+  /* Sankey scrolls sideways inside its card */
+  .insights__chart { padding: 10px 0 6px; margin: 0 -16px; border-left: 0; border-right: 0; }
+  .chart-wrap { -webkit-overflow-scrolling: touch; padding: 0 6px; }
+  .chart-hint { display: block; }
+  .p-timeline { margin: 8px 0 0; padding: 10px 12px; }
+  .p-timeline__track { margin: 0 8px; }
+  .p-timeline__tick:nth-child(even) { display: none; }
+  .p-timeline__baseline { margin-left: 0; width: 100%; }
+  .comment-panel { margin: 0 -16px; border-left: 0; border-right: 0; }
+  .tooltip { max-width: calc(100vw - 24px); }
 }
+
 
 /* View colour chips, distribution bar, device search */
 .p-chip--legend { display: inline-flex; align-items: center; gap: 8px; }
@@ -248,3 +284,20 @@ body[data-tab="3"] .insights__body, body[data-tab="4"] .insights__body { grid-te
 .chart-legend__wp strong { font-family: "Ubuntu Sans Mono", ui-monospace, monospace; font-weight: 500; font-size: .75rem; color: var(--text); border: 1px dashed #8a8a8a; padding: 0 6px; background: #fff; }
 .chart-legend__wp span { font-size: .6875rem; color: var(--faint); }
 .chart-legend__col { top: 22px; }
+
+/* Mobile chrome (hidden on desktop) */
+.l-topbar { display: none; align-items: center; gap: 10px; background: var(--nav); color: #fff; height: 48px; padding: 0 12px 0 4px; position: sticky; top: 0; z-index: 20; }
+.l-topbar__menu { width: 44px; height: 44px; border: 0; background: none; display: inline-flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px; cursor: pointer; }
+.l-topbar__menu span { display: block; width: 18px; height: 2px; background: #fff; }
+.l-topbar__tag { width: 14px; height: 24px; background: var(--orange); }
+.l-topbar__product { font-weight: 300; font-size: 1.0625rem; }
+.l-topbar__page { margin-left: auto; font-size: .875rem; color: #ccc; }
+.l-nav-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 25; }
+.l-nav-overlay[hidden] { display: none; }
+.chart-hint { display: none; margin: 6px 16px 0; font-size: .75rem; color: var(--muted); }
+.chart-wrap:focus-visible { outline-offset: -2px; }
+@media (max-width: 760px) {
+  .l-topbar { display: flex; }
+  .chart-hint { display: block; }
+  .p-search { width: 100%; min-width: 0; margin-left: 0; }
+}

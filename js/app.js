@@ -13,7 +13,7 @@
 
   const TABS = [
     { id: 1, label: 'View', groupBy: false, comments: false, time: false,
-      intro: 'Each snap on a device publishes telemetry to snapd, which merges it into one stream for the telemetry endpoint; the endpoint applies policy and forwards it to a destination. A view colours every device — and its flows all the way through — by one attribute, e.g. its Juju version. Click a colour to isolate it; hover or click any node to trace its path.' },
+      intro: 'Each snap on a device publishes telemetry to snapd, which merges it into one stream for the telemetry endpoint; the endpoint applies policy and forwards it to a destination. A view colours every device — and its flows all the way through — by one attribute, e.g. its Juju version. Tap a colour to isolate it; hover or tap any node to trace its path.' },
     { id: 2, label: 'View + group by', groupBy: true, comments: false, time: false,
       intro: 'Group by replaces the device column with streams per value (e.g. Juju 4.1 / 3.6 / none). Publisher, policy and destination stay exactly the same. Use the chips to filter streams in or out.' },
     { id: 3, label: '+ Comments', groupBy: true, comments: true, time: false,
@@ -158,7 +158,9 @@
 
     const agg = currentAgg();
     const stg = stages();
-    const width = Math.max(720, el.wrap.clientWidth || 900);
+    // on small screens keep the chart wide enough to read and let it scroll sideways
+    const minW = window.innerWidth <= 760 ? 900 : 720;
+    const width = Math.max(minW, el.wrap.clientWidth || 900);
     const n1 = Object.keys(agg.nodes).filter(function (k) { return agg.nodes[k].col === 0; }).length;
     const height = Math.max(460, n1 * (groupBy() === 'device' ? 24 : 62));
     const L = S.layout(agg, stg, width, height);
@@ -581,6 +583,34 @@
 
   if (window.ResizeObserver) new ResizeObserver(function () { render(); }).observe(el.wrap);
   else window.addEventListener('resize', render);
+
+  // ---- mobile navigation ------------------------------------------------
+  const navToggle = $('nav-toggle'), navOverlay = $('nav-overlay');
+  function setNav(open) {
+    document.body.classList.toggle('nav-open', open);
+    navToggle.setAttribute('aria-expanded', String(open));
+    navToggle.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
+    navOverlay.hidden = !open;
+  }
+  navToggle.addEventListener('click', function () { setNav(!document.body.classList.contains('nav-open')); });
+  navOverlay.addEventListener('click', function () { setNav(false); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && document.body.classList.contains('nav-open')) { setNav(false); navToggle.focus(); } });
+  window.addEventListener('resize', function () { if (window.innerWidth > 760) setNav(false); });
+
+  // touch has no hover: show the tooltip for whatever was tapped
+  let lastPointer = 'mouse';
+  el.svg.addEventListener('pointerdown', function (e) { lastPointer = e.pointerType; });
+  el.svg.addEventListener('click', function (e) {
+    if (lastPointer !== 'touch') return;
+    const n = e.target.closest('[data-node]'), l = e.target.closest('[data-link]');
+    setTimeout(function () {
+      if (n) showTip(e, tipForNode(n.dataset.node));
+      else if (l) showTip(e, tipForLink(l.dataset.link));
+      else hideTip();
+    }, 30);
+  });
+  window.addEventListener('scroll', hideTip, { passive: true });
+  el.wrap.addEventListener('scroll', hideTip, { passive: true });
 
   // ---- boot -----------------------------------------------------------
   const m = /#tab(\d)/.exec(location.hash);

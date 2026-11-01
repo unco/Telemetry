@@ -10,8 +10,19 @@
 </head>
 <body>
 <div class="l-app">
+  <!-- Mobile top bar (replaces the side nav on small screens) -->
+  <header class="l-topbar">
+    <button type="button" class="l-topbar__menu" id="nav-toggle" aria-controls="side-nav" aria-expanded="false" aria-label="Open navigation">
+      <span></span><span></span><span></span>
+    </button>
+    <span class="l-topbar__tag" aria-hidden="true"></span>
+    <span class="l-topbar__product">Telemetry</span>
+    <span class="l-topbar__page">Insights</span>
+  </header>
+  <div class="l-nav-overlay" id="nav-overlay" hidden></div>
+
   <!-- Left navigation -->
-  <nav class="l-nav" aria-label="Main">
+  <nav class="l-nav" id="side-nav" aria-label="Main">
     <div class="l-nav__brand">
       <span class="l-nav__tag" aria-hidden="true"></span>
       <span class="l-nav__product">Telemetry</span>
@@ -69,10 +80,11 @@
 
       <div class="insights__body">
         <div class="p-card insights__chart">
-          <div class="chart-legend" id="legend"></div>
-          <div class="chart-wrap" id="chart-wrap">
+          <div class="chart-wrap" id="chart-wrap" tabindex="0" aria-label="Sankey diagram, scrollable">
+            <div class="chart-legend" id="legend"></div>
             <svg id="sankey" class="sankey" role="img" aria-label="Sankey diagram"></svg>
           </div>
+          <p class="chart-hint" aria-hidden="true">Swipe sideways to see the whole pipeline →</p>
           <div class="p-timeline" id="timeline" hidden></div>
         </div>
         <aside class="p-card comment-panel" id="comments" hidden aria-label="Comments"></aside>
