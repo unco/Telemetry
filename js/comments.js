@@ -20,14 +20,14 @@
  */
 (function (TL) {
   'use strict';
-  const KEY = 'tl.insights.comments.v6';
+  const KEY = 'tl.insights.comments.v7';
 
   const SEED = [
     { anchor: { view: 'juju', groupBy: 'juju', node: 'juju:2.9', period: null },
       author: 'Platform engineering', body: 'These are the last Juju 2.9 deployments. Can we export the device list for the upgrade backlog?' },
     { anchor: { view: 'juju', groupBy: 'juju', node: 'juju:4.1', period: '2026-06' },
       author: 'Infrastructure ops · EMEA', body: '4.1 upgrades pick up from here, after the Frankfurt data-centre maintenance window.' },
-    { anchor: { view: 'juju', groupBy: 'device', node: 'device:fra-metal-01', period: null },
+    { anchor: { view: 'juju', groupBy: 'device', node: 'device:fra-plant-01', period: null },
       author: 'Plant IT · Frankfurt', body: 'Line 3 controller. Its opcua-connector volume doubled after the new sensors went in; expected.' },
     { anchor: { view: 'jaas', groupBy: 'jaas', node: 'jaas:jaas', period: '2026-04' },
       author: 'Platform engineering', body: 'We started consolidating self-hosted controllers into JAAS in April.' },

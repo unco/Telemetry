@@ -265,7 +265,7 @@ window.TL = window.TL || {};
       const scale = TYPE_SCALE[type] * (0.6 + rnd() * 0.8);
       const growth = -0.01 + rnd() * 0.04;
       DEVICES.push({
-        id: region + '-' + type + '-' + String(i).padStart(2, '0'),
+        id: null, // assigned below as <region>-<site>-<nn>
         attrs: a, extras: extras, changes: changes,
         onboarded: chance(0.8) ? 0 : int(1, 10),
         scale: scale, growth: growth
@@ -295,6 +295,22 @@ window.TL = window.TL || {};
 
 
   // ---- Dimensions used as Sankey columns ------------------------------
+  // Device names say where a device is: <region>-<site>-<nn>, e.g. fra-plant-01.
+  // Sorted by region, then site, so related devices sit together in column 1.
+  const SITE_CODE = { store: 'store', factory: 'plant', dc: 'depot', datacentre: 'dc', cloud: 'cloud' };
+  const REGION_ORDER = ['fra', 'par', 'ldn', 'nyc', 'sfo', 'sgp'];
+  const SITE_ORDER = ['store', 'factory', 'dc', 'datacentre', 'cloud'];
+  DEVICES.sort(function (x, y) {
+    return (REGION_ORDER.indexOf(x.attrs.region) - REGION_ORDER.indexOf(y.attrs.region)) ||
+      (SITE_ORDER.indexOf(x.attrs.site) - SITE_ORDER.indexOf(y.attrs.site));
+  });
+  const counters = {};
+  DEVICES.forEach(function (d) {
+    const key = d.attrs.region + '-' + SITE_CODE[d.attrs.site];
+    counters[key] = (counters[key] || 0) + 1;
+    d.id = key + '-' + String(counters[key]).padStart(2, '0');
+  });
+
   const DIMENSIONS = {
     device: { label: 'Device', values: DEVICES.map(function (d) { return { id: d.id, label: d.id }; }) },
     publisher: PUBLISHERS, policy: POLICIES, destination: DESTINATIONS

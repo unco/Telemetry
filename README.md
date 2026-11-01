@@ -29,6 +29,10 @@ Open `index.html` directly in a browser; there's no build step. All data is **sy
 | 3 · + Comments | Comments on any node, scoped to view and group-by. Comments on the same node in other contexts are linked |
 | 4 · + Over time | 12-month scrubber with play, deltas against a baseline, comments pinned to a month, and timeline markers |
 
+## Devices
+
+Device names say where the device is: `<region>-<site>-<nn>`, e.g. `fra-plant-01`, `nyc-store-02`, `sgp-cloud-01`. Site codes are `store` (retail store), `plant` (factory floor), `depot` (distribution centre), `dc` (data centre) and `cloud` (public cloud). In column 1, devices are sorted by region, then site.
+
 ## Publishers (snaps)
 
 The fleet is modelled on a large retailer or manufacturer, spread across retail stores, factory floors, distribution centres, data centres and public cloud. Most publishers are the customer's own or partner applications; Canonical infrastructure snaps are a minority.
@@ -77,7 +81,7 @@ GROUP_BYS     ['device', …attributes]
 
 - `snapshot(month)` expands devices × publishers × routing into flow facts: `{ device, …attrs, publisher, policy, destination, rule, count }`.
 - `sankey.aggregate(facts, [col1, 'publisher', 'policy', 'destination'], { segAttr: view.attr, filter, focus })` gives every node and link a `seg` breakdown by view value. That breakdown is what colours flows end to end.
-- Node ids are `"<dimension>:<value>"` (e.g. `juju:3.6`, `device:fra-metal-01`, `policy:eu-res`). They stay the same across time, views and group-bys.
+- Node ids are `"<dimension>:<value>"` (e.g. `juju:3.6`, `device:fra-plant-01`, `policy:eu-res`). They stay the same across time, views and group-bys.
 - Columns are top-aligned, so the top stream runs horizontally and lower streams rise into it. Node order is fixed, so playback doesn't reshuffle.
 
 The routing rules deliberately contain a realistic flaw. Rule R2 (payment-vault telemetry, applied at the endpoint) comes before R4 (EU residency), so a little payment telemetry from EU-residency devices is copied to the US data lake. The Telemetry residency view makes this visible, and a seeded comment flags it.
