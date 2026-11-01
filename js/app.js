@@ -382,9 +382,8 @@
       const p = TL.parseNodeId(sel);
       const list = TL.comments.forNode(c, sel);
       const other = TL.comments.elsewhere(c, sel);
-      const val = TL.valueOf(p.dim, p.val) || {};
       html += '<div class="comment-panel__node"><span class="p-field__label">' + esc(TL.DIMENSIONS[p.dim].label) + '</span>' +
-        '<h2 class="comment-panel__title">' + (val.canonical ? '<span class="canon">◆</span> ' : '') + esc(TL.nodeLabel(sel)) + '</h2>' +
+        '<h2 class="comment-panel__title">' + esc(TL.nodeLabel(sel)) + '</h2>' +
         '<button type="button" class="p-icon-button comment-panel__close" data-clear="1" aria-label="Close thread">✕</button></div>' +
         (list.length ? '<ul class="p-comments">' + list.map(function (x) { return commentHtml(x, false); }).join('') + '</ul>'
                      : '<p class="comment-panel__empty">No comments on this node in this context.</p>') +
@@ -450,7 +449,7 @@
         (rules[0].at === 'snapd' ? 'on the device by snapd' : 'at the telemetry endpoint') + '</div>';
     }
     const cnt = tab().comments ? (TL.comments.counts(ctx())[id] || 0) : 0;
-    return '<div class="tooltip__dim">' + esc(TL.DIMENSIONS[n.dim].label) + (v.canonical ? ' · <span class="canon">◆ Canonical</span>' : '') + '</div>' +
+    return '<div class="tooltip__dim">' + esc(TL.DIMENSIONS[n.dim].label) + '</div>' +
       '<strong>' + esc(v.label) + '</strong><div>' + fmt(n.value) + ' events/day</div>' + body +
       '<div class="tooltip__hint">' + (tab().comments ? (cnt ? cnt + ' comment' + (cnt > 1 ? 's' : '') + ' · ' : '') + 'Click to ' + (cnt ? 'open thread' : 'comment') : 'Click to pin the trace') + '</div>';
   }

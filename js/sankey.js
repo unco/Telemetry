@@ -222,7 +222,6 @@
       const showMeta = n.ht >= 22;
       const small = n.ht < 12;
       parts.push('<text class="sk-label' + (small ? ' sk-label--small' : '') + '" x="' + lx + '" y="' + (showMeta ? cy - 2 : cy + 4) + '" text-anchor="' + anchor + '">');
-      if (v.canonical) parts.push('<tspan class="sk-label__canon">◆ </tspan>');
       parts.push(esc(v.label) + '</text>');
       if (showMeta) {
         parts.push('<text class="sk-meta" x="' + lx + '" y="' + (cy + 12) + '" text-anchor="' + anchor + '">' + fmt(n.value) + '/day');
