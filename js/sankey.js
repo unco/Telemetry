@@ -115,13 +115,32 @@
   }
 
   // ---- Rendering ------------------------------------------------------
+  /*
+   * Band for a slice [offset, offset + w] of link l (measured from its top).
+   * The link's centre line is a cubic Bézier; the slice edges are offset
+   * along the curve's normal, so the band keeps a constant thickness even
+   * where the curve is steep (a plain vertical offset would pinch it).
+   * At both ends the tangent is horizontal, so the band meets nodes square.
+   */
+  const SAMPLES = 48;
   function band(l, offset, w) {
     const x0 = l.s.x + l.s.w, x1 = l.t.x, dx = x1 - x0;
-    const y0 = l.sy + offset, y1 = l.ty + offset;
-    // control points at 50% keep the top stream flat and let lower streams rise smoothly
     const c0 = x0 + dx * 0.5, c1 = x1 - dx * 0.5;
-    return 'M' + x0 + ',' + y0 + 'C' + c0 + ',' + y0 + ' ' + c1 + ',' + y1 + ' ' + x1 + ',' + y1 +
-      'L' + x1 + ',' + (y1 + w) + 'C' + c1 + ',' + (y1 + w) + ' ' + c0 + ',' + (y0 + w) + ' ' + x0 + ',' + (y0 + w) + 'Z';
+    const ya = l.sy + l.w / 2, yb = l.ty + l.w / 2;
+    const a = offset - l.w / 2, b = a + w;
+    const top = [], bot = [];
+    for (let i = 0; i <= SAMPLES; i++) {
+      const t = i / SAMPLES, mt = 1 - t;
+      const x = mt * mt * mt * x0 + 3 * mt * mt * t * c0 + 3 * mt * t * t * c1 + t * t * t * x1;
+      const y = (mt * mt * mt + 3 * mt * mt * t) * ya + (3 * mt * t * t + t * t * t) * yb;
+      const tx = 3 * mt * mt * (c0 - x0) + 6 * mt * t * (c1 - c0) + 3 * t * t * (x1 - c1);
+      const ty = 6 * mt * t * (yb - ya);
+      const len = Math.hypot(tx, ty) || 1;
+      const nx = -ty / len, ny = tx / len;
+      top.push((x + nx * a).toFixed(1) + ',' + (y + ny * a).toFixed(1));
+      bot.push((x + nx * b).toFixed(1) + ',' + (y + ny * b).toFixed(1));
+    }
+    return 'M' + top.join('L') + 'L' + bot.reverse().join('L') + 'Z';
   }
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function fmt(n) {
