@@ -93,9 +93,8 @@
   function buildViewSwitch() {
     el.viewSwitch.innerHTML = TL.VIEWS.map(function (v) {
       const on = v.id === state.view;
-      const c = TL.ATTRIBUTES[v.attr].values.filter(function (x) { return x.color; })[0].color;
       return '<button type="button" role="radio" aria-checked="' + on + '" class="p-segmented__item' + (on ? ' is-active' : '') + '" data-view="' + v.id + '">' +
-        '<span class="swatch" style="background:' + c + '"></span>' + esc(v.label) + '</button>';
+        esc(v.label) + '</button>';
     }).join('');
   }
   function buildGroupBy() {

@@ -64,34 +64,52 @@ window.TL = window.TL || {};
   // `color` on a value = how it is painted when its view is active.
   // Values without a colour (e.g. "none") stay neutral grey.
   const GREY = null;
+  // Categorical palette (supplied by design). PALETTE[n] is the ordered set
+  // to use when a view has n coloured values; neutral values stay grey.
+  const PALETTE = {
+    1: ['#AC4E2A'],
+    2: ['#AC4E2A', '#A676A0'],
+    3: ['#AC4E2A', '#6B3264', '#A676A0'],
+    4: ['#AC4E2A', '#A676A0', '#6B3264', '#8C8E5F'],
+    5: ['#AC4E2A', '#6B3264', '#A676A0', '#79331A', '#8C8E5F'],
+    6: ['#AC4E2A', '#A676A0', '#6B3264', '#8C8E5F', '#79331A', '#4C6E87'],
+    7: ['#AC4E2A', '#A676A0', '#6B3264', '#8C8E5F', '#4C6E87', '#79331A', '#63998C'],
+    8: ['#AC4E2A', '#A676A0', '#717236', '#6B3264', '#8C8E5F', '#4C6E87', '#79331A', '#63998C'],
+    12: ['#AC4E2A', '#A676A0', '#6B3264', '#8C8E5F', '#79331A', '#4C6E87', '#63998C', '#717236', '#6587AC', '#BC6D4C', '#564D46', '#997B73']
+  };
+  function paletteFor(n) {
+    if (PALETTE[n]) return PALETTE[n];
+    const k = Object.keys(PALETTE).map(Number).filter(function (x) { return x >= n; })[0] || 12;
+    return PALETTE[k].slice(0, n);
+  }
   const ATTRIBUTES = {
     juju: { label: 'Juju version', short: 'Juju', values: [
-      { id: '4.1', label: 'Juju 4.1', color: '#E95420' },
-      { id: '3.6', label: 'Juju 3.6 LTS', color: '#2F6FB5' },
-      { id: '2.9', label: 'Juju 2.9', color: '#772953' },
+      { id: '4.1', label: 'Juju 4.1', color: true },
+      { id: '3.6', label: 'Juju 3.6 LTS', color: true },
+      { id: '2.9', label: 'Juju 2.9', color: true },
       { id: 'none', label: 'No Juju', color: GREY }] },
     jaas: { label: 'Juju controller', short: 'JAAS', values: [
-      { id: 'jaas', label: 'Managed by JAAS', color: '#E95420' },
-      { id: 'self', label: 'Self-hosted controller', color: '#2F6FB5' },
+      { id: 'jaas', label: 'Managed by JAAS', color: true },
+      { id: 'self', label: 'Self-hosted controller', color: true },
       { id: 'none', label: 'No Juju', color: GREY }] },
     maas: { label: 'MAAS version', short: 'MAAS', values: [
-      { id: '3.6', label: 'MAAS 3.6', color: '#E95420' },
-      { id: '3.5', label: 'MAAS 3.5', color: '#2F6FB5' },
+      { id: '3.6', label: 'MAAS 3.6', color: true },
+      { id: '3.5', label: 'MAAS 3.5', color: true },
       { id: 'none', label: 'Not MAAS-provisioned', color: GREY }] },
     microcloud: { label: 'MicroCloud', short: 'MicroCloud', values: [
-      { id: 'member', label: 'MicroCloud member', color: '#E95420' },
+      { id: 'member', label: 'MicroCloud member', color: true },
       { id: 'none', label: 'Not in a MicroCloud', color: GREY }] },
     stack: { label: 'Canonical infrastructure', short: 'Canonical infra', values: [
-      { id: 'full', label: 'Full Canonical stack', color: '#E95420' },
-      { id: 'partial', label: 'Partial Canonical stack', color: '#F2A07B' },
+      { id: 'full', label: 'Full Canonical stack', color: true },
+      { id: 'partial', label: 'Partial Canonical stack', color: true },
       { id: 'none', label: 'No Canonical infra', color: GREY }] },
     sovereignty: { label: 'Telemetry residency', short: 'Residency', values: [
-      { id: 'eu', label: 'EU residency', color: '#3B4BA8' },
-      { id: 'uk', label: 'UK residency', color: '#B0479A' },
+      { id: 'eu', label: 'EU residency', color: true },
+      { id: 'uk', label: 'UK residency', color: true },
       { id: 'none', label: 'No residency rule', color: GREY }] },
     confidential: { label: 'Confidential compute', short: 'Confidential', values: [
-      { id: 'tdx', label: 'Intel TDX', color: '#0E8420' },
-      { id: 'snp', label: 'AMD SEV-SNP', color: '#1F8A9E' },
+      { id: 'tdx', label: 'Intel TDX', color: true },
+      { id: 'snp', label: 'AMD SEV-SNP', color: true },
       { id: 'none', label: 'Not confidential', color: GREY }] },
     type: { label: 'Device type', short: 'Type', values: [
       { id: 'metal', label: 'Bare-metal server' }, { id: 'vm', label: 'Virtual machine' },
@@ -102,6 +120,14 @@ window.TL = window.TL || {};
     release: { label: 'Ubuntu release', short: 'Release', values: [
       { id: '2204', label: 'Ubuntu 22.04 LTS' }, { id: '2404', label: 'Ubuntu 24.04 LTS' }, { id: '2604', label: 'Ubuntu 26.04 LTS' }] }
   };
+
+  // assign palette colours: values marked `color: true` take the next colour
+  // from the row matching the number of coloured values in that attribute
+  Object.keys(ATTRIBUTES).forEach(function (k) {
+    const coloured = ATTRIBUTES[k].values.filter(function (v) { return v.color; });
+    const row = paletteFor(coloured.length);
+    coloured.forEach(function (v, i) { v.color = row[i]; });
+  });
 
   // ---- Pipeline vocabularies -----------------------------------------
   // Publishers are snaps. Every snap hands its telemetry to snapd on the
@@ -293,7 +319,7 @@ window.TL = window.TL || {};
 
   Object.assign(TL, {
     MONTHS: MONTHS, monthLabel: monthLabel,
-    ATTRIBUTES: ATTRIBUTES, DIMENSIONS: DIMENSIONS, ROUTING: ROUTING,
+    ATTRIBUTES: ATTRIBUTES, DIMENSIONS: DIMENSIONS, ROUTING: ROUTING, PALETTE: PALETTE,
     // shared infrastructure every flow passes through (drawn between columns)
     WAYPOINTS: [
       { after: 'publisher', label: 'snapd', sub: 'one stream per device' },
