@@ -62,7 +62,7 @@ GROUP_BYS     ['device', …attributes]
 - Node ids are `"<dimension>:<value>"` (e.g. `juju:3.6`, `device:fra-metal-01`, `policy:eu-res`). They stay the same across time, views and group-bys.
 - Columns are top-aligned, so the top stream runs horizontally and lower streams rise into it. Node order is fixed, so playback doesn't reshuffle.
 
-The routing rules deliberately contain a realistic flaw. Rule R2 (attestation evidence, applied at the endpoint) comes before R4 (EU residency), so a little telemetry from EU-sovereign devices reaches the global destination. The Sovereignty view makes this visible, and a seeded comment flags it.
+The routing rules deliberately contain a realistic flaw. Rule R2 (attestation evidence, applied at the endpoint) comes before R4 (EU residency), so a little attestation evidence from EU-sovereign devices is copied to the US data lake. The Sovereignty view makes this visible, and a seeded comment flags it.
 
 ## Comments (`js/comments.js`)
 

@@ -20,7 +20,7 @@
  */
 (function (TL) {
   'use strict';
-  const KEY = 'tl.insights.comments.v3';
+  const KEY = 'tl.insights.comments.v4';
 
   const SEED = [
     { anchor: { view: 'juju', groupBy: 'juju', node: 'juju:2.9', period: null },
@@ -35,8 +35,8 @@
       author: 'Telemetry team', body: 'The maas snap is one of the largest publishers by volume. Worth checking its sampling rate in snapd.' },
     { anchor: { view: 'microcloud', groupBy: 'type', node: 'type:edge', period: null },
       author: 'Product · MicroCloud', body: 'Edge devices are where MicroCloud adoption is concentrated.' },
-    { anchor: { view: 'sovereignty', groupBy: 'sovereignty', node: 'destination:canonical-global', period: null },
-      author: 'Security engineering', body: 'EU-sovereign devices still reach the global destination via rule R2 (attestation evidence, 30% share). Rule order needs fixing so residency wins.' },
+    { anchor: { view: 'sovereignty', groupBy: 'sovereignty', node: 'destination:lake-us', period: null },
+      author: 'Security engineering', body: 'EU-sovereign devices still reach the US data lake via rule R2 (15% of attestation evidence is copied there). Rule order needs fixing so residency wins.' },
     { anchor: { view: 'sovereignty', groupBy: 'device', node: 'policy:eu-res', period: '2026-05' },
       author: 'Legal', body: 'EU residency policy roll-out lands here. Confirm the date with the customer before we present.' },
     { anchor: { view: 'confidential', groupBy: 'confidential', node: 'publisher:attest', period: '2026-08' },

@@ -122,15 +122,22 @@ window.TL = window.TL || {};
     { id: 'eu-res', label: 'EU data residency' },
     { id: 'uk-res', label: 'UK data residency' },
     { id: 'attested', label: 'Attested release only' },
-    { id: 'local', label: 'Customer only (no Canonical copy)' },
+    { id: 'local', label: 'On-prem only' },
     { id: 'drop', label: 'Opted out (drop)' }] };
+  // Destinations are the customer's own systems (illustrative roles for a
+  // large enterprise). `zone` = where the system stores data, used to spot
+  // telemetry leaving its residency zone.
   const DESTINATIONS = { label: 'Destination', values: [
-    { id: 'canonical-global', label: 'Canonical telemetry · global' },
-    { id: 'canonical-eu', label: 'Canonical telemetry · EU region' },
-    { id: 'canonical-uk', label: 'Canonical telemetry · UK region' },
-    { id: 'landscape', label: 'Customer Landscape (on-prem)' },
-    { id: 'siem', label: 'Customer SIEM' },
-    { id: 'discard', label: 'Not sent (dropped on device)' }] };
+    { id: 'observability', label: 'Observability platform', zone: 'us' },
+    { id: 'lake-us', label: 'Analytics data lake · US', zone: 'us' },
+    { id: 'lake-eu', label: 'Analytics data lake · EU', zone: 'eu' },
+    { id: 'lake-uk', label: 'Analytics data lake · UK', zone: 'uk' },
+    { id: 'siem', label: 'Security SIEM (SOC)', zone: 'us' },
+    { id: 'cmdb', label: 'CMDB / asset inventory', zone: 'us' },
+    { id: 'itsm', label: 'ITSM · incident tickets', zone: 'us' },
+    { id: 'landscape', label: 'Landscape (on-prem)', zone: 'onprem' },
+    { id: 'archive', label: 'Compliance archive (7-year)', zone: 'onprem' },
+    { id: 'discard', label: 'Not sent (dropped on device)', zone: 'device' }] };
 
   // ---- Policy rules (ordered, first match wins) -----------------------
   // `when` matches device attributes and/or publisher; `to` lists
@@ -139,12 +146,12 @@ window.TL = window.TL || {};
   //   'endpoint' – at the telemetry endpoint, after demultiplexing
   const ROUTING = [
     { id: 'R1', at: 'snapd', when: { consent: 'optout' }, policy: 'drop', to: [['discard', 1]] },
-    { id: 'R2', at: 'endpoint', when: { publisher: 'attest' }, policy: 'attested', to: [['siem', 0.7], ['canonical-global', 0.3]] },
-    { id: 'R3', at: 'endpoint', when: { publisher: 'landscape' }, policy: 'local', to: [['landscape', 1]] },
-    { id: 'R4', at: 'endpoint', when: { sovereignty: 'eu' }, policy: 'eu-res', to: [['canonical-eu', 1]] },
-    { id: 'R5', at: 'endpoint', when: { sovereignty: 'uk' }, policy: 'uk-res', to: [['canonical-uk', 1]] },
-    { id: 'R6', at: 'snapd', when: { publisher: ['juju', 'maas', 'microcloud'] }, policy: 'redact', to: [['canonical-global', 0.85], ['siem', 0.15]] },
-    { id: 'R7', at: 'endpoint', when: {}, policy: 'standard', to: [['canonical-global', 1]] }
+    { id: 'R2', at: 'endpoint', when: { publisher: 'attest' }, policy: 'attested', to: [['siem', 0.6], ['archive', 0.25], ['lake-us', 0.15]] },
+    { id: 'R3', at: 'endpoint', when: { publisher: 'landscape' }, policy: 'local', to: [['landscape', 0.8], ['cmdb', 0.2]] },
+    { id: 'R4', at: 'endpoint', when: { sovereignty: 'eu' }, policy: 'eu-res', to: [['lake-eu', 0.75], ['archive', 0.25]] },
+    { id: 'R5', at: 'endpoint', when: { sovereignty: 'uk' }, policy: 'uk-res', to: [['lake-uk', 0.75], ['archive', 0.25]] },
+    { id: 'R6', at: 'snapd', when: { publisher: ['juju', 'maas', 'microcloud'] }, policy: 'redact', to: [['observability', 0.45], ['lake-us', 0.25], ['itsm', 0.15], ['siem', 0.15]] },
+    { id: 'R7', at: 'endpoint', when: {}, policy: 'standard', to: [['observability', 0.5], ['cmdb', 0.25], ['siem', 0.1], ['lake-us', 0.15]] }
   ];
   function route(attrs, publisher) {
     const ctx = Object.assign({ publisher: publisher }, attrs);
