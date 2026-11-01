@@ -38,7 +38,7 @@ Open `index.html` directly in a browser; there's no build step. All data is **sy
 | MAAS | MAAS version | 3.6 · 3.5 · none |
 | MicroCloud | MicroCloud membership | member · none |
 | Canonical infra | Derived stack | full (Juju + MAAS/MicroCloud) · partial · none |
-| Sovereignty | Sovereignty zone | EU · UK · global |
+| Telemetry residency | Residency rule the device's telemetry follows | EU · UK · none |
 | Confidential compute | CC hardware | Intel TDX · AMD SEV-SNP · none |
 
 Group-by can use any of these attributes, plus device type, region and Ubuntu release.
@@ -62,7 +62,7 @@ GROUP_BYS     ['device', …attributes]
 - Node ids are `"<dimension>:<value>"` (e.g. `juju:3.6`, `device:fra-metal-01`, `policy:eu-res`). They stay the same across time, views and group-bys.
 - Columns are top-aligned, so the top stream runs horizontally and lower streams rise into it. Node order is fixed, so playback doesn't reshuffle.
 
-The routing rules deliberately contain a realistic flaw. Rule R2 (attestation evidence, applied at the endpoint) comes before R4 (EU residency), so a little attestation evidence from EU-sovereign devices is copied to the US data lake. The Sovereignty view makes this visible, and a seeded comment flags it.
+The routing rules deliberately contain a realistic flaw. Rule R2 (attestation evidence, applied at the endpoint) comes before R4 (EU residency), so a little attestation evidence from EU-residency devices is copied to the US data lake. The Telemetry residency view makes this visible, and a seeded comment flags it.
 
 ## Comments (`js/comments.js`)
 

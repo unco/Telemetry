@@ -10,6 +10,9 @@ Prototype of the **Insights** page (Telemetry product): a Sankey shown as four d
 ## Terminology
 - Do **not** describe snapd as a "gateway" — that term is not to be used. Describe what it does (enforces rules and naming, multiplexes into one stream).
 - Publishers are snaps; label them with their snap names.
+- "Sovereignty" here means **telemetry residency** only (which residency rule a device's telemetry follows), not sovereignty of the device or its workloads. Use "Telemetry residency" in the UI.
+- Destinations are the customer's own systems (observability, data lakes, SIEM, CMDB, ITSM, Landscape, archive), not Canonical services.
+- Goal is to show where data goes and why. Zone-crossing flags / "leaving its zone" KPIs are explicitly not an objective.
 
 ## Sankey rules agreed with the user
 - Columns are fixed: **Device → Publisher → Policy → Destination**. Only column 1 changes.

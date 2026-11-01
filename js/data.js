@@ -85,10 +85,10 @@ window.TL = window.TL || {};
       { id: 'full', label: 'Full Canonical stack', color: '#E95420' },
       { id: 'partial', label: 'Partial Canonical stack', color: '#F2A07B' },
       { id: 'none', label: 'No Canonical infra', color: GREY }] },
-    sovereignty: { label: 'Sovereignty zone', short: 'Sovereignty', values: [
-      { id: 'eu', label: 'EU sovereign', color: '#3B4BA8' },
-      { id: 'uk', label: 'UK sovereign', color: '#B0479A' },
-      { id: 'none', label: 'Global (no residency)', color: GREY }] },
+    sovereignty: { label: 'Telemetry residency', short: 'Residency', values: [
+      { id: 'eu', label: 'EU residency', color: '#3B4BA8' },
+      { id: 'uk', label: 'UK residency', color: '#B0479A' },
+      { id: 'none', label: 'No residency rule', color: GREY }] },
     confidential: { label: 'Confidential compute', short: 'Confidential', values: [
       { id: 'tdx', label: 'Intel TDX', color: '#0E8420' },
       { id: 'snp', label: 'AMD SEV-SNP', color: '#1F8A9E' },
@@ -286,7 +286,7 @@ window.TL = window.TL || {};
     { id: 'maas', attr: 'maas', label: 'MAAS', question: 'Which devices are provisioned by MAAS, and on which version?' },
     { id: 'microcloud', attr: 'microcloud', label: 'MicroCloud', question: 'Which devices belong to a MicroCloud cluster?' },
     { id: 'stack', attr: 'stack', label: 'Canonical infra', question: 'How much of the fleet runs on a full Canonical stack (MAAS / MicroCloud + Juju)?' },
-    { id: 'sovereignty', attr: 'sovereignty', label: 'Sovereignty', question: 'Is telemetry from sovereign devices staying inside its jurisdiction?' },
+    { id: 'sovereignty', attr: 'sovereignty', label: 'Telemetry residency', question: 'Which residency rule does each device’s telemetry follow, and where does it end up?' },
     { id: 'confidential', attr: 'confidential', label: 'Confidential compute', question: 'Which devices run confidential VMs, and where does their attestation evidence go?' }
   ];
   const GROUP_BYS = ['device', 'juju', 'jaas', 'maas', 'microcloud', 'stack', 'sovereignty', 'confidential', 'type', 'region', 'release'];
