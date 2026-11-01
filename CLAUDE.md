@@ -19,6 +19,8 @@ Prototype of the **Insights** page (Telemetry product): a Sankey shown as four d
 - Health = composite 0–100 "magic number" from weighted components, shown in bands of 10 (0–10, 11–20 … 91–100).
 - Health uses an adjacent/gradient colour scale (diverging rust → taupe/olive → teal, derived from the design palette), not the contrasting categorical palette.
 
+- Health data includes a deliberate incident (Jun–Sep 2026, opcua-connector r214 crash loop + fleet-wide refresh hold) with a two-SRE comment thread on Health · by Site · Factory floor.
+
 ## Sankey rules agreed with the user
 - Columns are fixed: **Device → Publisher → Policy → Destination**. Only column 1 changes.
 - A **view** colours devices (and their flows end to end) by one attribute, e.g. Juju version. Views never change columns.

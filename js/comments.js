@@ -20,9 +20,28 @@
  */
 (function (TL) {
   'use strict';
-  const KEY = 'tl.insights.comments.v8';
+  const KEY = 'tl.insights.comments.v9';
 
   const SEED = [
+    // SRE incident thread (Health view, grouped by Site, on Factory floor)
+    { anchor: { view: 'health', groupBy: 'site', node: 'site:factory', period: '2026-06' }, createdAt: '2026-06-17T08:42:00Z',
+      author: 'Ana Ribeiro · SRE', body: 'Factory health is falling fast: stability is near zero on most plants and opcua-connector telemetry has halved. Started right after opcua-connector r214 hit stable on Monday. Paging plant IT.' },
+    { anchor: { view: 'health', groupBy: 'site', node: 'site:factory', period: '2026-06' }, createdAt: '2026-06-17T09:15:00Z',
+      author: 'Tom Okafor · SRE', body: 'Confirmed: r214 segfaults on the older PLC firmware, so it’s crash-looping on ldn and sgp plants first. I’ve put a fleet-wide snap refresh hold in place until we know the blast radius.' },
+    { anchor: { view: 'health', groupBy: 'site', node: 'site:factory', period: '2026-07' }, createdAt: '2026-07-08T13:30:00Z',
+      author: 'Ana Ribeiro · SRE', body: 'The hold is hurting now. Snap refresh and patch currency are sliding on every site, not just factories: fleet average is down to 56 from 73. Factories are at 39. We can’t keep a blanket hold much longer.' },
+    { anchor: { view: 'health', groupBy: 'site', node: 'site:factory', period: '2026-07' }, createdAt: '2026-07-08T14:05:00Z',
+      author: 'Tom Okafor · SRE', body: 'Agreed. Plan: pin factories back to r212 with a channel override, then lift the hold for everything except opcua-connector. Rolling back fra-plant-01 first as a canary.' },
+    { anchor: { view: 'health', groupBy: 'site', node: 'site:factory', period: '2026-08' }, createdAt: '2026-08-04T10:20:00Z',
+      author: 'Tom Okafor · SRE', body: 'Rollback to r212 is done on all plants. Stability is back above 70 and the reporting gaps have closed. Hold lifted for every other snap.' },
+    { anchor: { view: 'health', groupBy: 'site', node: 'site:factory', period: '2026-08' }, createdAt: '2026-08-05T09:00:00Z',
+      author: 'Ana Ribeiro · SRE', body: 'Vendor has a fix in r216 on the candidate channel. Running it on fra-plant-01 for two weeks before we promote.' },
+    { anchor: { view: 'health', groupBy: 'site', node: 'site:factory', period: '2026-09' }, createdAt: '2026-09-11T15:40:00Z',
+      author: 'Ana Ribeiro · SRE', body: 'r216 has been clean on the canary for two weeks; promoted to all plants. Factory health is back to 69, the same as before the incident.' },
+    { anchor: { view: 'health', groupBy: 'site', node: 'site:factory', period: '2026-09' }, createdAt: '2026-09-11T16:02:00Z',
+      author: 'Tom Okafor · SRE', body: 'Follow-up from the review: opcua-connector refreshes now go to one canary plant first, with a 7-day soak before the rest. Closing this out.' },
+    { anchor: { view: 'health', groupBy: 'health', node: 'health:31-40', period: '2026-07' }, createdAt: '2026-07-08T13:45:00Z',
+      author: 'Ana Ribeiro · SRE', body: 'Most of this band in July is the opcua-connector incident on factory devices. The full thread is under Group by: Site → Factory floor.' },
     { anchor: { view: 'health', groupBy: 'health', node: 'health:21-30', period: null },
       author: 'Plant IT · London', body: 'This is ldn-plant-04: still on 20.04 and unpatched since the line was retooled. Booked for rebuild next month.' },
     { anchor: { view: 'juju', groupBy: 'juju', node: 'juju:2.9', period: null },

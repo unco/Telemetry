@@ -77,6 +77,21 @@ The intermediate steps were interpolated in OKLCH. Lightness mirrors either side
 - The KPI shows the fleet's average score, with its monthly trend on the Over time tab.
 - In the Health view, each device's tooltip breaks the score down by component.
 
+### Health incident (Jun–Sep 2026)
+
+The data includes a fleet incident to show change over time. All of it is defined in `INCIDENT` in `js/data.js`.
+
+| Month | What happens | Fleet avg | Factories |
+|---|---|---|---|
+| Jun | `opcua-connector` r214 crash-loops on factory devices; their telemetry drops by more than half | 69 | 56 |
+| Jul | A fleet-wide snap refresh hold contains it, but snap and patch currency slide everywhere | **56** | **39** |
+| Aug | Factories are rolled back to r212; the hold is lifted for everything else | 67 | 58 |
+| Sep | Fixed r216 ships after a canary soak; health is back to pre-incident levels | 73 | 69 |
+
+Before the incident, the fleet average was 73 and factories averaged 69.
+
+Two SREs discuss and resolve the incident in a comment thread. To find it, choose **Device health** and group by **Site**, then open **Factory floor**. On the Over time tab, the thread's comments show as markers from June to September.
+
 ## Views
 
 The view selector is a dropdown. It starts on **Neutral**, where every flow is one colour (palette slate) with no breakdown.

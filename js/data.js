@@ -323,7 +323,24 @@ window.TL = window.TL || {};
       noise: r
     };
     d.health.noiseByMonth = MONTHS.map(function () { return (d.health.noise() - 0.5) * 8; });
+    if (d.attrs.site === 'factory') {
+      d.changes.push({ month: 7, attrs: {}, note: 'opcua-connector r214 crash-looping' });
+      d.changes.push({ month: 9, attrs: {}, note: 'Rolled back to opcua-connector r212' });
+      d.changes.push({ month: 10, attrs: {}, note: 'Refreshed to opcua-connector r216 (fix)' });
+      d.changes.sort(function (x, y) { return x.month - y.month; });
+    }
   });
+
+  // ---- Fleet incident (Jun–Sep 2026) --------------------------------------
+  // A bad opcua-connector revision (r214) crash-loops on factory devices.
+  // SRE holds snap refreshes fleet-wide to contain it, which drags snap and
+  // patch currency down everywhere. Factories are rolled back in August, and
+  // a fixed revision (r216) ships in September. Month index: Jun = 7.
+  const INCIDENT = {
+    factory: { 7: { stability: 10, reporting: -40 }, 8: { stability: 8, reporting: -45, snaps: -30 }, 9: { stability: 70, snaps: -25 } },
+    fleet: { 8: { snaps: -40, patch: -18 }, 9: { snaps: -18, patch: -8 }, 10: { snaps: -6 } },
+    volume: { 7: 0.45, 8: 0.4, 9: 0.85 } // share of opcua-connector telemetry still arriving
+  };
   function healthAt(d, a, m) {
     const h = d.health, clamp = function (x) { return Math.max(0, Math.min(100, x)); };
     const parts = {
@@ -334,6 +351,11 @@ window.TL = window.TL || {};
       policy: h.policy != null ? h.policy : (REGION_SOV[a.region] && a.sovereignty === 'none') ? 55 : a.consent === 'optout' ? 60 : 95,
       stability: h.incident === m ? 5 : clamp(h.stability + h.noiseByMonth[m])
     };
+    const fi = INCIDENT.fleet[m], fa = a.site === 'factory' && INCIDENT.factory[m];
+    if (fi) Object.keys(fi).forEach(function (k) { parts[k] = clamp(parts[k] + fi[k]); });
+    if (fa) Object.keys(fa).forEach(function (k) {
+      parts[k] = k === 'stability' ? Math.min(parts[k], fa[k]) : clamp(parts[k] + fa[k]);
+    });
     let score = 0;
     HEALTH_COMPONENTS.forEach(function (c) { score += parts[c.id] * c.weight; });
     return { score: Math.round(clamp(score)), parts: parts };
@@ -401,7 +423,7 @@ window.TL = window.TL || {};
       const vol = d.scale * Math.pow(1 + d.growth, m);
       publishersFor(d, a).forEach(function (pub) {
         const r = route(a, pub);
-        const base = BASE_RATE[pub] * vol;
+        const base = BASE_RATE[pub] * vol * (pub === 'plc' && INCIDENT.volume[m] ? INCIDENT.volume[m] : 1);
         r.to.forEach(function (t) {
           facts.push(Object.assign({ device: d.id, publisher: pub, policy: r.policy, destination: t[0], rule: r.id, count: base * t[1] }, a));
         });
