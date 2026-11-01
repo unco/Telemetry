@@ -11,34 +11,29 @@
   const S = TL.sankey, esc = S.esc, fmt = S.fmt;
   const LAST = TL.MONTHS.length - 1;
 
-  const TABS = [
-    { id: 1, label: 'View', groupBy: false, comments: false, time: false },
-    { id: 2, label: 'View + group by', groupBy: true, comments: false, time: false },
-    { id: 3, label: '+ Comments', groupBy: true, comments: true, time: false },
-    { id: 4, label: '+ Over time', groupBy: true, comments: true, time: true }
-  ];
+  // Capabilities switched on for the page (all on; kept as flags so any can be turned off).
+  const FEATURES = { groupBy: true, comments: true, time: true };
 
   const state = {
-    tab: 1,
     view: 'neutral',
-    groupBy: 'site',         // used from tab 2; tab 1 always shows devices
+    groupBy: 'device',       // 'device' = one node per device in column 1
     isolate: {},             // { viewId: valueId } — colour only this value
     excluded: {},            // { dim: { valueId: true } }
     query: '',               // device name filter
     selected: null, hover: null,
-    month: LAST, baseline: 'prev', playing: false
+    month: LAST, baseline: 'none', playing: false
   };
 
   const $ = function (id) { return document.getElementById(id); };
   const el = {
-    tabs: $('tabs'), viewSelect: $('view-select'), hlField: $('hl-field'), groupby: $('groupby'),
+    viewSelect: $('view-select'), hlField: $('hl-field'), groupby: $('groupby'),
     groupbyField: $('groupby-field'), hl: $('hl-switch'), hlLabel: $('lbl-hl'), filter: $('group-filter'), question: $('view-question'),
     kpis: $('kpis'), legend: $('legend'), wrap: $('chart-wrap'), svg: $('sankey'), timeline: $('timeline'),
     comments: $('comments'), tooltip: $('tooltip')
   };
 
   // ---- derived state --------------------------------------------------
-  function tab() { return TABS[state.tab - 1]; }
+  function tab() { return FEATURES; }
   function view() { return TL.viewById(state.view); }
   function attr() { return TL.ATTRIBUTES[view().attr]; }
   function palette() { return attr().values.map(function (v) { return { id: v.id, color: v.color || null }; }); }
@@ -80,12 +75,6 @@
   }
 
   // ---- static UI builders --------------------------------------------
-  function buildTabs() {
-    el.tabs.innerHTML = TABS.map(function (t) {
-      return '<button class="p-tabs__item" role="tab" id="tab-' + t.id + '" data-tab="' + t.id + '" aria-selected="' + (state.tab === t.id) + '" tabindex="' + (state.tab === t.id ? 0 : -1) + '">' +
-        '<span class="p-tabs__num">Tab ' + t.id + '</span>' + esc(t.label) + '</button>';
-    }).join('');
-  }
   function buildViewSwitch() {
     // views without a group are top-level options; grouped views nest under an <optgroup>
     let html = '', open = null;
@@ -176,7 +165,7 @@
     lastLayout = L;
 
     let deltas = null;
-    if (t.time) {
+    if (t.time && state.baseline !== 'none') {
       const pi = periodIndex();
       const baseM = state.baseline === 'start' ? 0 : Math.max(0, pi - 1);
       if (baseM !== pi) {
@@ -189,6 +178,7 @@
       }
     }
 
+    el.svg.classList.toggle('is-neutral', isNeutral());
     S.render(el.svg, L, {
       waypoints: waypoints(stg, L),
       palette: palette(),
@@ -315,7 +305,7 @@
           '<button type="button" class="p-icon-button" id="tl-next" aria-label="Next month">▶</button>' +
           '<span class="p-timeline__period" id="tl-period"></span>' +
           '<label class="p-timeline__baseline">Compare to <select class="p-select p-select--small" id="tl-baseline">' +
-            '<option value="prev">previous month</option><option value="start">' + TL.monthLabel(TL.MONTHS[0]) + '</option></select></label>' +
+            '<option value="none">nothing</option><option value="prev">previous month</option><option value="start">' + TL.monthLabel(TL.MONTHS[0]) + '</option></select></label>' +
         '</div>' +
         '<div class="p-timeline__track">' +
           '<div class="p-timeline__markers" id="tl-markers"></div>' +
@@ -503,26 +493,10 @@
 
   // ---- events ---------------------------------------------------------
   function rebuildControls() { buildViewSwitch(); buildGroupBy(); buildHighlight(); buildGroupFilter(); }
-  function setTab(id) {
-    stopPlay();
-    state.tab = id; state.hover = null;
-    if (!tab().time) state.month = LAST;
-    if (state.selected && TL.parseNodeId(state.selected).dim !== groupBy() && TL.PIPELINE.indexOf(TL.parseNodeId(state.selected).dim) < 0) state.selected = null;
-    history.replaceState(null, '', '#tab' + id);
-    buildTabs(); buildHighlight(); buildGroupFilter();
-    document.body.dataset.tab = id;
-    render();
-  }
   function clearColumn1Selection() {
     if (state.selected && TL.PIPELINE.indexOf(TL.parseNodeId(state.selected).dim) < 0) state.selected = null;
   }
 
-  el.tabs.addEventListener('click', function (e) { const b = e.target.closest('[data-tab]'); if (b) setTab(+b.dataset.tab); });
-  el.tabs.addEventListener('keydown', function (e) {
-    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
-    const n = (state.tab - 1 + (e.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length + 1;
-    setTab(n); $('tab-' + n).focus();
-  });
   el.viewSelect.addEventListener('change', function (e) {
     const prevAttr = view().attr;
     state.view = e.target.value;
@@ -623,7 +597,7 @@
     if (e.target.id === 'cm-body' && e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); $('cm-form').requestSubmit(); }
   });
   TL.comments.onChange(render);
-  $('reset-demo').addEventListener('click', function () { TL.comments.reset(); });
+  $('reset-demo').addEventListener('click', function (e) { e.preventDefault(); TL.comments.reset(); });
 
   if (window.ResizeObserver) new ResizeObserver(function () { render(); }).observe(el.wrap);
   else window.addEventListener('resize', render);
@@ -657,7 +631,6 @@
   el.wrap.addEventListener('scroll', hideTip, { passive: true });
 
   // ---- boot -----------------------------------------------------------
-  const m = /#tab(\d)/.exec(location.hash);
   rebuildControls();
-  setTab(m ? Math.min(4, Math.max(1, +m[1])) : 1);
+  render();
 })(window.TL);

@@ -49,12 +49,8 @@
         <h1 class="p-heading">Insights</h1>
         <p class="p-subtitle">How telemetry flows from each device’s snaps, through snapd and the telemetry endpoint, to its destination.</p>
       </div>
-      <div class="p-page-header__actions">
-        <button class="p-button" id="reset-demo" type="button">Reset demo comments</button>
-      </div>
     </header>
 
-    <div class="p-tabs" role="tablist" aria-label="Demo stages" id="tabs"></div>
 
     <section class="insights" id="insights" aria-live="polite">
       <!-- Controls -->
@@ -89,6 +85,9 @@
         <aside class="p-card comment-panel" id="comments" hidden aria-label="Comments"></aside>
       </div>
     </section>
+    <footer class="p-page-footer">
+      <a href="#" class="p-page-footer__link" id="reset-demo" role="button">Reset comments</a>
+    </footer>
   </main>
 </div>
 <div class="tooltip" id="tooltip" role="tooltip" hidden></div>

@@ -22,12 +22,15 @@ A **view** colours every device by one attribute and carries that colour through
 
 Open `index.html` directly in a browser; there's no build step. All data is **synthetic** and seeded.
 
-| Tab | Capabilities |
-|---|---|
-| 1 · View | Devices coloured by the view attribute. Click a colour to isolate it. Hover or click a node to trace its full path |
-| 2 · View + group by | Column 1 collapses to group-by values. Chips filter streams; Alt-click shows only one. With devices, the chips filter by view value and a search box filters by name |
-| 3 · + Comments | Comments on any node, scoped to view and group-by. Comments on the same node in other contexts are linked |
-| 4 · + Over time | 12-month scrubber with play, deltas against a baseline, comments pinned to a month, and timeline markers |
+It's a single page with every capability switched on:
+
+- **View:** a dropdown that starts on Neutral. Other views colour devices and their flows by an attribute; click a colour to isolate it.
+- **Group by:** column 1 collapses to the group-by values. Chips filter the streams, and Alt-click shows only one. When showing devices, a search box filters them by name.
+- **Path tracing:** hover or click any node to trace its full path.
+- **Comments:** attach to any node, scoped to the current view and group-by. Comments on the same node in other contexts are linked.
+- **Timeline:** a 12-month scrubber with play. Comments can be pinned to a month and show as timeline markers. Change percentages appear only when "Compare to" is set.
+
+**Reset comments** at the bottom of the page restores the seeded comments.
 
 ## Devices
 
@@ -74,7 +77,7 @@ The score is shown in ten bands: 0–10, 11–20 … 91–100.
 The intermediate steps were interpolated in OKLCH. Lightness mirrors either side of the middle, and adjacent bands are roughly equal visual steps apart.
 
 **In the interface:**
-- The KPI shows the fleet's average score, with its monthly trend on the Over time tab.
+- The KPI shows the fleet's average score, with its monthly trend shown next to it.
 - In the Health view, each device's tooltip breaks the score down by component.
 
 Devices on **Juju 2.9** (out of support) score lower on patching, snap refreshes, stability and reporting. They average about 50, against the high 70s for Juju 4.1. Their scores recover once upgraded; for example, `nyc-cloud-01` goes from 68 to 93 when it moves to 3.6 in June.
@@ -92,7 +95,7 @@ The data includes a fleet incident to show change over time. All of it is define
 
 Before the incident, the fleet average was 73 and factories averaged 69.
 
-Two SREs discuss and resolve the incident in a comment thread. To find it, choose **Device health** and group by **Site**, then open **Factory floor**. On the Over time tab, the thread's comments show as markers from June to September.
+Two SREs discuss and resolve the incident in a comment thread. To find it, choose **Device health** and group by **Site**, then open **Factory floor**. The thread's comments show as timeline markers from June to September.
 
 ## Views
 
@@ -144,12 +147,12 @@ Comments are stored in `localStorage`. **Reset demo comments** restores the seed
 ## Files
 
 ```
-index.html        layout: left nav (Insights active), header, tabs
+index.html        layout: left nav (Insights active), header, controls, chart, footer
 css/app.css       Canonical/Vanilla-style app styling
 js/data.js        attributes, pipeline, routing rules, devices, views
 js/sankey.js      aggregate · interpolate · layout · SVG render
 js/comments.js    comment store
-js/app.js         page controller and tab capability flags
+js/app.js         page controller (capability flags in FEATURES)
 docs/             screenshots
 ```
 
@@ -157,5 +160,4 @@ docs/             screenshots
 
 | | |
 |---|---|
-| ![Tab 1](docs/tab1.png) | ![Tab 2](docs/tab2.png) |
-| ![Tab 3](docs/tab3.png) | ![Tab 4](docs/tab4.png) |
+| ![Neutral view, devices](docs/page.png) | ![Health incident, July 2026](docs/health-incident.png) |
