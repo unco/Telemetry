@@ -20,29 +20,29 @@
  */
 (function (TL) {
   'use strict';
-  const KEY = 'tl.insights.comments.v5';
+  const KEY = 'tl.insights.comments.v6';
 
   const SEED = [
     { anchor: { view: 'juju', groupBy: 'juju', node: 'juju:2.9', period: null },
-      author: 'Product · Juju', body: '2.9 devices are still publishing through the Juju agent. Good list for upgrade outreach — can we export it?' },
+      author: 'Platform engineering', body: 'These are the last Juju 2.9 deployments. Can we export the device list for the upgrade backlog?' },
     { anchor: { view: 'juju', groupBy: 'juju', node: 'juju:4.1', period: '2026-06' },
-      author: 'Field engineering · EMEA', body: '4.1 upgrades pick up from here. Matches the rollout we did with the Frankfurt customers.' },
+      author: 'Infrastructure ops · EMEA', body: '4.1 upgrades pick up from here, after the Frankfurt data-centre maintenance window.' },
     { anchor: { view: 'juju', groupBy: 'device', node: 'device:fra-metal-01', period: null },
-      author: 'UX research', body: 'Good example device for the interview walkthrough: MAAS + Juju, EU residency.' },
+      author: 'Plant IT · Frankfurt', body: 'Line 3 controller. Its opcua-connector volume doubled after the new sensors went in; expected.' },
     { anchor: { view: 'jaas', groupBy: 'jaas', node: 'jaas:jaas', period: '2026-04' },
-      author: 'Product · JAAS', body: 'Most JAAS growth is existing self-hosted controllers moving over, not net-new Juju users.' },
-    { anchor: { view: 'maas', groupBy: 'device', node: 'publisher:maas', period: null },
-      author: 'Telemetry team', body: 'The maas snap is one of the largest publishers by volume. Worth checking its sampling rate in snapd.' },
-    { anchor: { view: 'microcloud', groupBy: 'type', node: 'type:edge', period: null },
-      author: 'Product · MicroCloud', body: 'Edge devices are where MicroCloud adoption is concentrated.' },
+      author: 'Platform engineering', body: 'We started consolidating self-hosted controllers into JAAS in April.' },
+    { anchor: { view: 'maas', groupBy: 'site', node: 'publisher:shelfcam', period: null },
+      author: 'Data protection officer', body: 'shelf-vision is camera-derived. Confirm snapd’s PII redaction (R6) strips faces before anything leaves the store.' },
+    { anchor: { view: 'microcloud', groupBy: 'site', node: 'site:store', period: null },
+      author: 'Store systems', body: 'MicroCloud is being rolled out store by store to replace the old back-office servers.' },
     { anchor: { view: 'sovereignty', groupBy: 'sovereignty', node: 'destination:lake-us', period: null },
-      author: 'Security engineering', body: 'Telemetry from EU-residency devices still reaches the US data lake via rule R2 (15% of attestation evidence is copied there). Rule order needs fixing so residency wins.' },
+      author: 'Security operations', body: 'Telemetry from EU-residency devices still reaches the US data lake via rule R2 (15% of payment-vault telemetry is copied there). Rule order needs fixing so residency wins.' },
     { anchor: { view: 'sovereignty', groupBy: 'device', node: 'policy:eu-res', period: '2026-05' },
-      author: 'Legal', body: 'EU residency policy roll-out lands here. Confirm the date with the customer before we present.' },
-    { anchor: { view: 'confidential', groupBy: 'confidential', node: 'publisher:attest', period: '2026-08' },
-      author: 'Product · Confidential computing', body: 'Attestation volume tracks CC enablement closely. Use it as the adoption KPI.' },
-    { anchor: { view: 'stack', groupBy: 'stack', node: 'stack:full', period: null },
-      author: 'Strategy', body: 'Full-stack devices publish the richest telemetry. Make this the default lens for the exec review.' }
+      author: 'Legal · EU', body: 'EU residency policy went live here. Matches the date in our data-processing records.' },
+    { anchor: { view: 'confidential', groupBy: 'confidential', node: 'publisher:payment', period: '2026-08' },
+      author: 'Payments team', body: 'payment-vault only runs on confidential VMs, so its volume is a good proxy for how far the PCI migration has got.' },
+    { anchor: { view: 'stack', groupBy: 'site', node: 'site:factory', period: null },
+      author: 'Manufacturing IT', body: 'Factories are where predictive-maintenance and OPC UA telemetry dominate. These go to ITSM under the OT policy.' }
   ];
 
   function uid() { return 'cm_' + Math.random().toString(36).slice(2, 10); }

@@ -29,6 +29,24 @@ Open `index.html` directly in a browser; there's no build step. All data is **sy
 | 3 · + Comments | Comments on any node, scoped to view and group-by. Comments on the same node in other contexts are linked |
 | 4 · + Over time | 12-month scrubber with play, deltas against a baseline, comments pinned to a month, and timeline markers |
 
+## Publishers (snaps)
+
+The fleet is modelled on a large retailer or manufacturer, spread across retail stores, factory floors, distribution centres, data centres and public cloud. Most publishers are the customer's own or partner applications; Canonical infrastructure snaps are a minority.
+
+| Site | Typical snaps |
+|---|---|
+| Retail store | `pos-terminal`, `shelf-vision`, `digital-signage`, `cold-chain-monitor` |
+| Factory floor | `opcua-connector`, `predictive-maintenance`, `digital-signage` |
+| Distribution centre | `inventory-sync`, `cold-chain-monitor`, `predictive-maintenance` |
+| Data centre | `erp-connector`, `inventory-sync`, `order-service` |
+| Public cloud | `order-service`, `erp-connector`, `predictive-maintenance` |
+| Any site | `landscape-client`, plus `juju`, `maas`, `microcloud` where used. `payment-vault` runs on confidential VMs |
+
+Policy rules route these by sensitivity:
+- camera and till data get PII redaction in snapd (R6),
+- factory and sensor data follow the OT policy to observability and ITSM (R7),
+- payment data is PCI scope, attested only (R2).
+
 ## Views
 
 | View | Colours devices by | Values |
@@ -62,7 +80,7 @@ GROUP_BYS     ['device', …attributes]
 - Node ids are `"<dimension>:<value>"` (e.g. `juju:3.6`, `device:fra-metal-01`, `policy:eu-res`). They stay the same across time, views and group-bys.
 - Columns are top-aligned, so the top stream runs horizontally and lower streams rise into it. Node order is fixed, so playback doesn't reshuffle.
 
-The routing rules deliberately contain a realistic flaw. Rule R2 (attestation evidence, applied at the endpoint) comes before R4 (EU residency), so a little attestation evidence from EU-residency devices is copied to the US data lake. The Telemetry residency view makes this visible, and a seeded comment flags it.
+The routing rules deliberately contain a realistic flaw. Rule R2 (payment-vault telemetry, applied at the endpoint) comes before R4 (EU residency), so a little payment telemetry from EU-residency devices is copied to the US data lake. The Telemetry residency view makes this visible, and a seeded comment flags it.
 
 ## Comments (`js/comments.js`)
 

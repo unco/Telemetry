@@ -111,6 +111,10 @@ window.TL = window.TL || {};
       { id: 'tdx', label: 'Intel TDX', color: true },
       { id: 'snp', label: 'AMD SEV-SNP', color: true },
       { id: 'none', label: 'Not confidential', color: GREY }] },
+    site: { label: 'Site', short: 'Site', values: [
+      { id: 'store', label: 'Retail store' }, { id: 'factory', label: 'Factory floor' },
+      { id: 'dc', label: 'Distribution centre' }, { id: 'datacentre', label: 'Data centre' },
+      { id: 'cloud', label: 'Public cloud' }] },
     type: { label: 'Device type', short: 'Type', values: [
       { id: 'metal', label: 'Bare-metal server' }, { id: 'vm', label: 'Virtual machine' },
       { id: 'k8s', label: 'Kubernetes node' }, { id: 'edge', label: 'Edge device' }] },
@@ -135,19 +139,31 @@ window.TL = window.TL || {};
   // snaps into one stream and sends it to the telemetry endpoint, which
   // demultiplexes, routes and forwards. Labels are the snap names that
   // snapd enforces.
+  // A mix of the customer's own applications, partner software and a few
+  // Canonical infrastructure snaps, as a large retailer / manufacturer might
+  // run across stores, factories, distribution centres, data centres and cloud.
   const PUBLISHERS = { label: 'Publisher (snap)', values: [
-    { id: 'livepatch', label: 'canonical-livepatch' },
-    { id: 'landscape', label: 'landscape-client' },
-    { id: 'juju', label: 'juju', canonical: true },
-    { id: 'maas', label: 'maas', canonical: true },
-    { id: 'microcloud', label: 'microcloud', canonical: true },
-    { id: 'attest', label: 'cc-attestation' }] };
+    { id: 'pos', label: 'pos-terminal', note: 'Point-of-sale service on store tills' },
+    { id: 'shelfcam', label: 'shelf-vision', note: 'Computer-vision shelf monitoring (cameras)' },
+    { id: 'signage', label: 'digital-signage', note: 'In-store and factory display player' },
+    { id: 'coldchain', label: 'cold-chain-monitor', note: 'Refrigeration and temperature sensors' },
+    { id: 'plc', label: 'opcua-connector', note: 'Collects data from factory PLCs over OPC UA' },
+    { id: 'predmaint', label: 'predictive-maintenance', note: 'ML inference for equipment and vehicle wear' },
+    { id: 'inventory', label: 'inventory-sync', note: 'Stock levels between stores, DCs and ERP' },
+    { id: 'order', label: 'order-service', note: 'E-commerce order API' },
+    { id: 'erp', label: 'erp-connector', note: 'Integration with the ERP system' },
+    { id: 'payment', label: 'payment-vault', note: 'Card payment processing in a confidential VM' },
+    { id: 'landscape', label: 'landscape-client', note: 'Fleet management agent' },
+    { id: 'juju', label: 'juju', canonical: true, note: 'Application operations' },
+    { id: 'maas', label: 'maas', canonical: true, note: 'Bare-metal provisioning' },
+    { id: 'microcloud', label: 'microcloud', canonical: true, note: 'Edge/private cloud cluster' }] };
   const POLICIES = { label: 'Policy', values: [
     { id: 'standard', label: 'Standard (anonymised)' },
     { id: 'redact', label: 'PII redaction' },
     { id: 'eu-res', label: 'EU data residency' },
     { id: 'uk-res', label: 'UK data residency' },
-    { id: 'attested', label: 'Attested release only' },
+    { id: 'attested', label: 'PCI scope · attested only' },
+    { id: 'ot', label: 'OT safety & maintenance' },
     { id: 'local', label: 'On-prem only' },
     { id: 'drop', label: 'Opted out (drop)' }] };
   // Destinations are the customer's own systems (illustrative roles for a
@@ -172,12 +188,13 @@ window.TL = window.TL || {};
   //   'endpoint' – at the telemetry endpoint, after demultiplexing
   const ROUTING = [
     { id: 'R1', at: 'snapd', when: { consent: 'optout' }, policy: 'drop', to: [['discard', 1]] },
-    { id: 'R2', at: 'endpoint', when: { publisher: 'attest' }, policy: 'attested', to: [['siem', 0.6], ['archive', 0.25], ['lake-us', 0.15]] },
+    { id: 'R2', at: 'endpoint', when: { publisher: 'payment' }, policy: 'attested', to: [['siem', 0.6], ['archive', 0.25], ['lake-us', 0.15]] },
     { id: 'R3', at: 'endpoint', when: { publisher: 'landscape' }, policy: 'local', to: [['landscape', 0.8], ['cmdb', 0.2]] },
     { id: 'R4', at: 'endpoint', when: { sovereignty: 'eu' }, policy: 'eu-res', to: [['lake-eu', 0.75], ['archive', 0.25]] },
     { id: 'R5', at: 'endpoint', when: { sovereignty: 'uk' }, policy: 'uk-res', to: [['lake-uk', 0.75], ['archive', 0.25]] },
-    { id: 'R6', at: 'snapd', when: { publisher: ['juju', 'maas', 'microcloud'] }, policy: 'redact', to: [['observability', 0.45], ['lake-us', 0.25], ['itsm', 0.15], ['siem', 0.15]] },
-    { id: 'R7', at: 'endpoint', when: {}, policy: 'standard', to: [['observability', 0.5], ['cmdb', 0.25], ['siem', 0.1], ['lake-us', 0.15]] }
+    { id: 'R6', at: 'snapd', when: { publisher: ['pos', 'shelfcam'] }, policy: 'redact', to: [['lake-us', 0.6], ['observability', 0.25], ['siem', 0.15]] },
+    { id: 'R7', at: 'endpoint', when: { publisher: ['plc', 'predmaint', 'coldchain'] }, policy: 'ot', to: [['observability', 0.45], ['itsm', 0.35], ['lake-us', 0.2]] },
+    { id: 'R8', at: 'endpoint', when: {}, policy: 'standard', to: [['observability', 0.5], ['cmdb', 0.25], ['siem', 0.1], ['lake-us', 0.15]] }
   ];
   function route(attrs, publisher) {
     const ctx = Object.assign({ publisher: publisher }, attrs);
@@ -194,29 +211,45 @@ window.TL = window.TL || {};
   const REGION_SOV = { fra: 'eu', par: 'eu', ldn: 'uk' };
   const DEVICES = [];
   const plan = [
-    ['fra', 'metal', 3], ['fra', 'k8s', 2], ['fra', 'vm', 2],
-    ['par', 'metal', 2], ['par', 'edge', 2], ['par', 'vm', 1],
-    ['ldn', 'metal', 2], ['ldn', 'edge', 2], ['ldn', 'vm', 2],
-    ['nyc', 'metal', 3], ['nyc', 'k8s', 2], ['nyc', 'vm', 2],
-    ['sfo', 'k8s', 2], ['sfo', 'vm', 2],
-    ['sgp', 'metal', 1], ['sgp', 'edge', 2], ['sgp', 'vm', 2]
+    ['fra', 'metal', 3], ['fra', 'edge', 3], ['fra', 'k8s', 1], ['fra', 'vm', 1],
+    ['par', 'metal', 1], ['par', 'edge', 3], ['par', 'vm', 1],
+    ['ldn', 'metal', 1], ['ldn', 'edge', 3], ['ldn', 'vm', 1],
+    ['nyc', 'metal', 3], ['nyc', 'edge', 4], ['nyc', 'k8s', 2], ['nyc', 'vm', 1],
+    ['sfo', 'edge', 2], ['sfo', 'k8s', 1], ['sfo', 'vm', 2],
+    ['sgp', 'metal', 1], ['sgp', 'edge', 3], ['sgp', 'vm', 1]
   ];
-  const BASE_RATE = { livepatch: 260, landscape: 650, juju: 1300, maas: 520, microcloud: 800, attest: 220 };
-  const TYPE_SCALE = { metal: 1.5, k8s: 1.2, vm: 0.8, edge: 0.6 };
+  const BASE_RATE = { pos: 900, shelfcam: 1400, signage: 120, coldchain: 300, plc: 1100, predmaint: 700,
+    inventory: 800, order: 1000, erp: 500, payment: 300, landscape: 350, juju: 350, maas: 250, microcloud: 300 };
+  const SITE_BY_TYPE = {
+    edge: { store: 60, factory: 40 }, metal: { dc: 40, factory: 35, datacentre: 25 },
+    k8s: { datacentre: 50, cloud: 50 }, vm: { cloud: 70, datacentre: 30 }
+  };
+  // which application snaps a device runs, by site (probability per snap)
+  const SITE_SNAPS = {
+    store: { pos: 1, shelfcam: 0.5, signage: 0.6, coldchain: 0.5 },
+    factory: { plc: 1, predmaint: 0.6, signage: 0.2 },
+    dc: { inventory: 1, coldchain: 0.5, predmaint: 0.2 },
+    datacentre: { erp: 0.6, inventory: 0.4, order: 0.4 },
+    cloud: { order: 1, erp: 0.3, predmaint: 0.3 }
+  };
+  const TYPE_SCALE = { metal: 1.4, k8s: 1.2, vm: 0.9, edge: 1 };
 
   plan.forEach(function (p) {
     for (let i = 1; i <= p[2]; i++) {
       const region = p[0], type = p[1];
-      const a = { region: region, type: type };
+      const a = { region: region, type: type, site: pick(SITE_BY_TYPE[type]) };
       a.release = pick({ '2204': 45, '2404': 55 });
-      a.maas = type === 'metal' || type === 'edge' ? pick({ '3.6': 45, '3.5': 35, none: 20 }) : 'none';
+      a.maas = type === 'metal' ? pick({ '3.6': 45, '3.5': 35, none: 20 }) : type === 'edge' ? pick({ '3.6': 12, '3.5': 10, none: 78 }) : 'none';
       a.microcloud = (type === 'edge' || type === 'metal') && chance(0.35) ? 'member' : 'none';
-      a.juju = pick(type === 'vm' ? { '3.6': 30, '2.9': 15, none: 55 } : { '4.1': 10, '3.6': 50, '2.9': 20, none: 20 });
+      a.juju = pick(type === 'vm' ? { '3.6': 30, '2.9': 15, none: 55 } : type === 'edge' ? { '4.1': 5, '3.6': 15, '2.9': 5, none: 75 } : { '4.1': 10, '3.6': 50, '2.9': 20, none: 20 });
       a.jaas = a.juju === 'none' ? 'none' : (chance(0.25) ? 'jaas' : 'self');
       a.sovereignty = REGION_SOV[region] && chance(0.55) ? REGION_SOV[region] : 'none';
       a.confidential = (type === 'vm' || type === 'k8s') && chance(0.3) ? pick({ tdx: 60, snp: 40 }) : 'none';
       a.consent = chance(0.08) ? 'optout' : 'optin';
-      const extras = { landscape: chance(0.5), livepatch: chance(0.6) };
+      const extras = { landscape: chance(0.5), apps: [] };
+      const siteSnaps = SITE_SNAPS[a.site];
+      Object.keys(siteSnaps).forEach(function (k) { if (chance(siteSnaps[k])) extras.apps.push(k); });
+      if (!extras.apps.length) extras.apps.push(Object.keys(siteSnaps)[0]);
 
       const changes = [];
       if (a.juju === '3.6' && chance(0.55)) changes.push({ month: int(2, 11), attrs: { juju: '4.1' }, note: 'Upgraded to Juju 4.1' });
@@ -251,16 +284,15 @@ window.TL = window.TL || {};
     return a;
   }
   function publishersFor(d, a) {
-    const out = [];
-    if (d.extras.livepatch) out.push('livepatch');
+    const out = d.extras.apps.slice();
+    if (a.confidential !== 'none') out.push('payment');
     if (d.extras.landscape) out.push('landscape');
     if (a.juju !== 'none') out.push('juju');
     if (a.maas !== 'none') out.push('maas');
     if (a.microcloud === 'member') out.push('microcloud');
-    if (a.confidential !== 'none') out.push('attest');
-    if (!out.length) out.push('livepatch'); // every device runs at least one publishing snap
     return out;
   }
+
 
   // ---- Dimensions used as Sankey columns ------------------------------
   const DIMENSIONS = {
@@ -313,9 +345,9 @@ window.TL = window.TL || {};
     { id: 'microcloud', attr: 'microcloud', label: 'MicroCloud', question: 'Which devices belong to a MicroCloud cluster?' },
     { id: 'stack', attr: 'stack', label: 'Canonical infra', question: 'How much of the fleet runs on a full Canonical stack (MAAS / MicroCloud + Juju)?' },
     { id: 'sovereignty', attr: 'sovereignty', label: 'Telemetry residency', question: 'Which residency rule does each device’s telemetry follow, and where does it end up?' },
-    { id: 'confidential', attr: 'confidential', label: 'Confidential compute', question: 'Which devices run confidential VMs, and where does their attestation evidence go?' }
+    { id: 'confidential', attr: 'confidential', label: 'Confidential compute', question: 'Which devices run confidential VMs, and where does their payment telemetry go?' }
   ];
-  const GROUP_BYS = ['device', 'juju', 'jaas', 'maas', 'microcloud', 'stack', 'sovereignty', 'confidential', 'type', 'region', 'release'];
+  const GROUP_BYS = ['device', 'site', 'juju', 'jaas', 'maas', 'microcloud', 'stack', 'sovereignty', 'confidential', 'type', 'region', 'release'];
 
   Object.assign(TL, {
     MONTHS: MONTHS, monthLabel: monthLabel,

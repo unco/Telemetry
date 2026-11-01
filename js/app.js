@@ -435,13 +435,13 @@
     if (n.dim === 'device') {
       const d = TL.deviceAt(n.val, periodIndex());
       const a = d.attrs;
-      body = '<dl class="tooltip__attrs">' + ['type', 'region', 'juju', 'jaas', 'maas', 'microcloud', 'sovereignty', 'confidential', 'release'].map(function (k) {
+      body = '<dl class="tooltip__attrs">' + ['site', 'type', 'region', 'juju', 'jaas', 'maas', 'microcloud', 'sovereignty', 'confidential', 'release'].map(function (k) {
         return '<dt>' + esc(TL.ATTRIBUTES[k].short) + '</dt><dd' + (k === view().attr ? ' class="is-view"' : '') + '>' + esc(TL.valueOf(k, a[k]).label) + '</dd>';
       }).join('') + '</dl>';
       const hist = d.changes.filter(function (c) { return c.month <= periodIndex(); });
       if (hist.length) body += '<div class="tooltip__hist">' + hist.map(function (c) { return esc(TL.monthLabel(TL.MONTHS[Math.min(c.month, LAST)], true)) + ' · ' + esc(c.note); }).join('<br>') + '</div>';
     } else {
-      body = segBreakdown(n.seg, n.value);
+      body = (v.note ? '<div class="tooltip__note">' + esc(v.note) + '</div>' : '') + segBreakdown(n.seg, n.value);
     }
     if (n.dim === 'policy') {
       const rules = TL.ROUTING.filter(function (r) { return r.policy === n.val; });
