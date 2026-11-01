@@ -77,6 +77,8 @@ The intermediate steps were interpolated in OKLCH. Lightness mirrors either side
 - The KPI shows the fleet's average score, with its monthly trend on the Over time tab.
 - In the Health view, each device's tooltip breaks the score down by component.
 
+Devices on **Juju 2.9** (out of support) score lower on patching, snap refreshes, stability and reporting. They average about 50, against the high 70s for Juju 4.1. Their scores recover once upgraded; for example, `nyc-cloud-01` goes from 68 to 93 when it moves to 3.6 in June.
+
 ### Health incident (Jun–Sep 2026)
 
 The data includes a fleet incident to show change over time. All of it is defined in `INCIDENT` in `js/data.js`.

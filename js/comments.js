@@ -20,9 +20,13 @@
  */
 (function (TL) {
   'use strict';
-  const KEY = 'tl.insights.comments.v9';
+  const KEY = 'tl.insights.comments.v10';
 
   const SEED = [
+    { anchor: { view: 'health', groupBy: 'juju', node: 'juju:2.9', period: null },
+      author: 'Platform engineering', body: 'Juju 2.9 devices average under 50 on health, against high 70s for 4.1. Every component is lower: patching, snap refreshes, stability and reporting. The old agents are the common factor.' },
+    { anchor: { view: 'health', groupBy: 'device', node: 'device:nyc-cloud-01', period: '2026-06' },
+      author: 'Infrastructure ops · NA', body: 'Upgraded from Juju 2.9 to 3.6 this month: health went from 68 to 93 with no other changes. Using this as the case for prioritising the remaining 2.9 upgrades.' },
     // SRE incident thread (Health view, grouped by Site, on Factory floor)
     { anchor: { view: 'health', groupBy: 'site', node: 'site:factory', period: '2026-06' }, createdAt: '2026-06-17T08:42:00Z',
       author: 'Ana Ribeiro · SRE', body: 'Factory health is falling fast: stability is near zero on most plants and opcua-connector telemetry has halved. Started right after opcua-connector r214 hit stable on Monday. Paging plant IT.' },
@@ -45,7 +49,7 @@
     { anchor: { view: 'health', groupBy: 'health', node: 'health:21-30', period: null },
       author: 'Plant IT · London', body: 'This is ldn-plant-04: still on 20.04 and unpatched since the line was retooled. Booked for rebuild next month.' },
     { anchor: { view: 'juju', groupBy: 'juju', node: 'juju:2.9', period: null },
-      author: 'Platform engineering', body: 'These are the last Juju 2.9 deployments. Can we export the device list for the upgrade backlog?' },
+      author: 'Platform engineering', body: 'These are the last Juju 2.9 deployments, and they’re also our least healthy devices. Can we export the list for the upgrade backlog?' },
     { anchor: { view: 'juju', groupBy: 'juju', node: 'juju:4.1', period: '2026-06' },
       author: 'Infrastructure ops · EMEA', body: '4.1 upgrades pick up from here, after the Frankfurt data-centre maintenance window.' },
     { anchor: { view: 'juju', groupBy: 'device', node: 'device:fra-plant-01', period: null },

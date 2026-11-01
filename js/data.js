@@ -351,6 +351,14 @@ window.TL = window.TL || {};
       policy: h.policy != null ? h.policy : (REGION_SOV[a.region] && a.sovereignty === 'none') ? 55 : a.consent === 'optout' ? 60 : 95,
       stability: h.incident === m ? 5 : clamp(h.stability + h.noiseByMonth[m])
     };
+    // Juju 2.9 is out of support: older agents miss fixes, lag on refreshes,
+    // crash more and drop metrics. Devices recover once upgraded to 3.6.
+    if (a.juju === '2.9') {
+      parts.patch = clamp(parts.patch - 35);
+      parts.snaps = clamp(parts.snaps - 25); // on top of the base -20 above
+      parts.stability = clamp(parts.stability - 35);
+      parts.reporting = clamp(parts.reporting - 20);
+    }
     const fi = INCIDENT.fleet[m], fa = a.site === 'factory' && INCIDENT.factory[m];
     if (fi) Object.keys(fi).forEach(function (k) { parts[k] = clamp(parts[k] + fi[k]); });
     if (fa) Object.keys(fa).forEach(function (k) {
