@@ -136,6 +136,8 @@ window.TL = window.TL || {};
     const lo = i === 0 ? 0 : i * 10 + 1, hi = (i + 1) * 10;
     return { id: lo + '-' + hi, label: lo + '–' + hi, color: c, lo: lo, hi: hi };
   }).reverse(); // healthiest first
+  // Neutral view: every flow in one colour (palette slate), no breakdown.
+  ATTRIBUTES.neutral = { label: 'Neutral', short: 'Neutral', values: [{ id: 'all', label: 'All telemetry', color: '#4C6E87' }] };
   ATTRIBUTES.health = { label: 'Health', short: 'Health', ordinal: true, values: HEALTH_BANDS };
   function healthBand(score) { return score <= 10 ? '0-10' : (Math.floor((score - 1) / 10) * 10 + 1) + '-' + (Math.floor((score - 1) / 10) * 10 + 10); }
 
@@ -341,6 +343,7 @@ window.TL = window.TL || {};
     const a = Object.assign({}, d.attrs);
     d.changes.forEach(function (c) { if (c.month <= m) Object.assign(a, c.attrs); });
     a.stack = deriveStack(a);
+    a.neutral = 'all';
     const h = healthAt(d, a, m);
     a.healthScore = h.score; a.healthParts = h.parts; a.health = healthBand(h.score);
     return a;
@@ -416,15 +419,17 @@ window.TL = window.TL || {};
 
   // ---- Views & group-bys ----------------------------------------------
   // A view = one attribute to colour by + the question it answers.
+  // `group` nests a view under a heading in the view selector.
   const VIEWS = [
-    { id: 'health', attr: 'health', label: 'Health', question: 'How healthy is each device, and where does telemetry from unhealthy devices go?' },
-    { id: 'juju', attr: 'juju', label: 'Juju', question: 'Which Juju version is each device running, and where does that telemetry go?' },
-    { id: 'jaas', attr: 'jaas', label: 'JAAS', question: 'Which devices are managed through JAAS versus self-hosted controllers?' },
-    { id: 'maas', attr: 'maas', label: 'MAAS', question: 'Which devices are provisioned by MAAS, and on which version?' },
-    { id: 'microcloud', attr: 'microcloud', label: 'MicroCloud', question: 'Which devices belong to a MicroCloud cluster?' },
-    { id: 'stack', attr: 'stack', label: 'Canonical infra', question: 'How much of the fleet runs on a full Canonical stack (MAAS / MicroCloud + Juju)?' },
+    { id: 'neutral', attr: 'neutral', label: 'Neutral', question: 'Where does each device’s telemetry go, and under which policy?' },
+    { id: 'health', attr: 'health', label: 'Device health', question: 'How healthy is each device, and where does telemetry from unhealthy devices go?' },
     { id: 'sovereignty', attr: 'sovereignty', label: 'Telemetry residency', question: 'Which residency rule does each device’s telemetry follow, and where does it end up?' },
-    { id: 'confidential', attr: 'confidential', label: 'Confidential compute', question: 'Which devices run confidential VMs, and where does their payment telemetry go?' }
+    { id: 'confidential', attr: 'confidential', label: 'Confidential compute', question: 'Which devices run confidential VMs, and where does their payment telemetry go?' },
+    { id: 'stack', attr: 'stack', label: 'Full / partial stack', group: 'Canonical infrastructure', question: 'How much of the fleet runs on a full Canonical stack (MAAS / MicroCloud + Juju)?' },
+    { id: 'juju', attr: 'juju', label: 'Juju', group: 'Canonical infrastructure', question: 'Which Juju version is each device running, and where does that telemetry go?' },
+    { id: 'jaas', attr: 'jaas', label: 'JAAS', group: 'Canonical infrastructure', question: 'Which devices are managed through JAAS versus self-hosted controllers?' },
+    { id: 'maas', attr: 'maas', label: 'MAAS', group: 'Canonical infrastructure', question: 'Which devices are provisioned by MAAS, and on which version?' },
+    { id: 'microcloud', attr: 'microcloud', label: 'MicroCloud', group: 'Canonical infrastructure', question: 'Which devices belong to a MicroCloud cluster?' },
   ];
   const GROUP_BYS = ['device', 'health', 'site', 'juju', 'jaas', 'maas', 'microcloud', 'stack', 'sovereignty', 'confidential', 'type', 'region', 'release'];
 

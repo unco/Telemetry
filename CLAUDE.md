@@ -22,6 +22,8 @@ Prototype of the **Insights** page (Telemetry product): a Sankey shown as four d
 ## Sankey rules agreed with the user
 - Columns are fixed: **Device → Publisher → Policy → Destination**. Only column 1 changes.
 - A **view** colours devices (and their flows end to end) by one attribute, e.g. Juju version. Views never change columns.
+- View selector is a dropdown starting on **Neutral** (one flow colour): Neutral · Device health · Telemetry residency · Confidential compute · Canonical infrastructure ▸ (Full/partial stack, Juju, JAAS, MAAS, MicroCloud).
+- No tab descriptions and no "synthetic data" note under the page header.
 - **Group by** replaces the device column with that attribute's values (e.g. Juju 4.1 / 3.6 / none); publisher, policy and destination stay intact.
 - Tabs: 1 view · 2 + group by · 3 + comments · 4 + over time.
 - Columns top-aligned (top stream horizontal, others rise into it); flows fairly transparent.

@@ -12,20 +12,16 @@
   const LAST = TL.MONTHS.length - 1;
 
   const TABS = [
-    { id: 1, label: 'View', groupBy: false, comments: false, time: false,
-      intro: 'Each snap on a device publishes telemetry to snapd, which merges it into one stream for the telemetry endpoint; the endpoint applies policy and forwards it to a destination. A view colours every device — and its flows all the way through — by one attribute, e.g. its Juju version. Tap a colour to isolate it; hover or tap any node to trace its path.' },
-    { id: 2, label: 'View + group by', groupBy: true, comments: false, time: false,
-      intro: 'Group by replaces the device column with streams per value (e.g. Juju 4.1 / 3.6 / none). Publisher, policy and destination stay exactly the same. Use the chips to filter streams in or out.' },
-    { id: 3, label: '+ Comments', groupBy: true, comments: true, time: false,
-      intro: 'Comments belong to a node within a view and group-by, so the same node can hold different conversations in different lenses. Click a node to read or add comments.' },
-    { id: 4, label: '+ Over time', groupBy: true, comments: true, time: true,
-      intro: 'Scrub or play through twelve months to watch upgrades, migrations and policy changes move through the pipeline. Comments can be pinned to a month and show as markers on the timeline.' }
+    { id: 1, label: 'View', groupBy: false, comments: false, time: false },
+    { id: 2, label: 'View + group by', groupBy: true, comments: false, time: false },
+    { id: 3, label: '+ Comments', groupBy: true, comments: true, time: false },
+    { id: 4, label: '+ Over time', groupBy: true, comments: true, time: true }
   ];
 
   const state = {
     tab: 1,
-    view: 'juju',
-    groupBy: 'juju',         // used from tab 2; tab 1 always shows devices
+    view: 'neutral',
+    groupBy: 'site',         // used from tab 2; tab 1 always shows devices
     isolate: {},             // { viewId: valueId } — colour only this value
     excluded: {},            // { dim: { valueId: true } }
     query: '',               // device name filter
@@ -35,7 +31,7 @@
 
   const $ = function (id) { return document.getElementById(id); };
   const el = {
-    tabs: $('tabs'), intro: $('tab-intro'), viewSwitch: $('view-switch'), groupby: $('groupby'),
+    tabs: $('tabs'), viewSelect: $('view-select'), hlField: $('hl-field'), groupby: $('groupby'),
     groupbyField: $('groupby-field'), hl: $('hl-switch'), hlLabel: $('lbl-hl'), filter: $('group-filter'), question: $('view-question'),
     kpis: $('kpis'), legend: $('legend'), wrap: $('chart-wrap'), svg: $('sankey'), timeline: $('timeline'),
     comments: $('comments'), tooltip: $('tooltip')
@@ -91,12 +87,20 @@
     }).join('');
   }
   function buildViewSwitch() {
-    el.viewSwitch.innerHTML = TL.VIEWS.map(function (v) {
-      const on = v.id === state.view;
-      return '<button type="button" role="radio" aria-checked="' + on + '" class="p-segmented__item' + (on ? ' is-active' : '') + '" data-view="' + v.id + '">' +
-        esc(v.label) + '</button>';
-    }).join('');
+    // views without a group are top-level options; grouped views nest under an <optgroup>
+    let html = '', open = null;
+    TL.VIEWS.forEach(function (v) {
+      if (v.group !== open) {
+        if (open) html += '</optgroup>';
+        if (v.group) html += '<optgroup label="' + esc(v.group) + '">';
+        open = v.group || null;
+      }
+      html += '<option value="' + v.id + '"' + (v.id === state.view ? ' selected' : '') + '>' + esc(v.label) + '</option>';
+    });
+    if (open) html += '</optgroup>';
+    el.viewSelect.innerHTML = html;
   }
+  function isNeutral() { return view().id === 'neutral'; }
   function buildGroupBy() {
     el.groupby.innerHTML = TL.GROUP_BYS.map(function (g) {
       const label = g === 'device' ? 'Devices (no grouping)' : TL.ATTRIBUTES[g].label;
@@ -106,6 +110,7 @@
   function buildHighlight() {
     const a = attr(), iso = state.isolate[state.view] || null;
     const counts = deviceCounts(periodIndex(), view().attr);
+    el.hlField.hidden = isNeutral();
     el.hlLabel.textContent = 'Colour by ' + a.label.toLowerCase();
     el.hl.innerHTML = a.values.map(function (v) {
       const on = iso === v.id, dimmed = iso && !on;
@@ -128,6 +133,12 @@
     const search = g === 'device'
       ? '<input type="search" class="p-search" id="device-q" placeholder="Filter devices…" value="' + esc(state.query) + '" aria-label="Filter devices by name">'
       : '';
+    if (fd === 'neutral') { // nothing to filter by in the neutral view: devices get the search box only
+      el.filter.innerHTML = '<span class="p-group-filter__label">Devices</span>' + search;
+      const q0 = $('device-q');
+      if (q0) q0.addEventListener('input', function (e) { state.query = e.target.value; render(); });
+      return;
+    }
     el.filter.innerHTML = '<span class="p-group-filter__label">' + (g === 'device' ? 'Show devices with' : 'Show streams') + '</span>' +
       TL.ATTRIBUTES[fd].values.map(function (v) {
         const on = !ex[v.id];
@@ -150,7 +161,6 @@
 
   function draw() {
     const t = tab(), v = view();
-    el.intro.textContent = t.intro;
     el.groupbyField.hidden = !t.groupBy;
     const firstColour = attr().values.filter(function (x) { return x.color; })[0].color;
     el.question.innerHTML = '<span class="p-question__swatch" style="background:' + firstColour + '"></span>' + esc(v.question);
@@ -229,7 +239,13 @@
       return '<span class="p-dist__seg" style="flex:' + c + ';background:' + (v.color || '#d3d3d3') + '" title="' + esc(v.label) + ': ' + c + '"></span>';
     }).join('');
     const iso = state.isolate[state.view];
-    if (view().attr === 'health' && !iso) {
+    if (isNeutral()) {
+      // no breakdown to report: summarise the pipeline instead
+      const pubs = {}, dests = {};
+      Object.keys(agg.nodes).forEach(function (k) { const n = agg.nodes[k]; if (n.dim === 'publisher') pubs[k] = 1; if (n.dim === 'destination') dests[k] = 1; });
+      items.push(kpi('Pipeline', Object.keys(pubs).length + ' <span class="p-kpi__unit">snaps → </span>' + Object.keys(dests).length + ' <span class="p-kpi__unit">destinations</span>',
+        'Pick a view to colour flows by an attribute'));
+    } else if (view().attr === 'health' && !iso) {
       // health is a score: show the fleet average and its trend
       const avg = avgHealth(pi);
       const band = TL.valueOf('health', bandOf(avg));
@@ -507,10 +523,9 @@
     const n = (state.tab - 1 + (e.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length + 1;
     setTab(n); $('tab-' + n).focus();
   });
-  el.viewSwitch.addEventListener('click', function (e) {
-    const b = e.target.closest('[data-view]'); if (!b) return;
+  el.viewSelect.addEventListener('change', function (e) {
     const prevAttr = view().attr;
-    state.view = b.dataset.view;
+    state.view = e.target.value;
     // keep group-by linked to the view unless the user chose something else
     if (state.groupBy === prevAttr) state.groupBy = view().attr;
     state.hover = null; clearColumn1Selection();

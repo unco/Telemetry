@@ -47,7 +47,7 @@
       <div>
         <div class="p-breadcrumb">Telemetry / <strong>Insights</strong></div>
         <h1 class="p-heading">Insights</h1>
-        <p class="p-subtitle">How telemetry flows from each device’s snaps, through snapd and the telemetry endpoint, to its destination. Synthetic demo data.</p>
+        <p class="p-subtitle">How telemetry flows from each device’s snaps, through snapd and the telemetry endpoint, to its destination.</p>
       </div>
       <div class="p-page-header__actions">
         <button class="p-button" id="reset-demo" type="button">Reset demo comments</button>
@@ -55,20 +55,19 @@
     </header>
 
     <div class="p-tabs" role="tablist" aria-label="Demo stages" id="tabs"></div>
-    <p class="p-tab-intro" id="tab-intro"></p>
 
     <section class="insights" id="insights" aria-live="polite">
       <!-- Controls -->
       <div class="p-toolbar" id="toolbar">
         <div class="p-field">
-          <span class="p-field__label" id="lbl-view">View</span>
-          <div class="p-segmented" role="radiogroup" aria-labelledby="lbl-view" id="view-switch"></div>
+          <label class="p-field__label" for="view-select">View</label>
+          <select id="view-select" class="p-select"></select>
         </div>
         <div class="p-field" id="groupby-field">
           <label class="p-field__label" for="groupby">Group by</label>
           <select id="groupby" class="p-select"></select>
         </div>
-        <div class="p-field p-field--grow">
+        <div class="p-field p-field--grow" id="hl-field">
           <span class="p-field__label" id="lbl-hl">Colour by</span>
           <div class="p-chips" role="radiogroup" aria-labelledby="lbl-hl" id="hl-switch"></div>
         </div>

@@ -79,17 +79,21 @@ The intermediate steps were interpolated in OKLCH. Lightness mirrors either side
 
 ## Views
 
+The view selector is a dropdown. It starts on **Neutral**, where every flow is one colour (palette slate) with no breakdown.
+
 | View | Colours devices by | Values |
 |---|---|---|
-| Juju | Juju version | 4.1 · 3.6 LTS · 2.9 · none |
-| JAAS | Juju controller | JAAS · self-hosted · none |
-| MAAS | MAAS version | 3.6 · 3.5 · none |
-| MicroCloud | MicroCloud membership | member · none |
-| Canonical infra | Derived stack | full (Juju + MAAS/MicroCloud) · partial · none |
+| Neutral | Nothing (one colour) | All telemetry |
+| Device health | Health band | 0–10 … 91–100 |
 | Telemetry residency | Residency rule the device's telemetry follows | EU · UK · none |
-| Confidential compute | CC hardware | Intel TDX · AMD SEV-SNP · none |
+| Confidential compute | Confidential-computing hardware | Intel TDX · AMD SEV-SNP · none |
+| *Canonical infrastructure:* Full / partial stack | Derived stack | full (Juju + MAAS/MicroCloud) · partial · none |
+| *Canonical infrastructure:* Juju | Juju version | 4.1 · 3.6 LTS · 2.9 · none |
+| *Canonical infrastructure:* JAAS | Juju controller | JAAS · self-hosted · none |
+| *Canonical infrastructure:* MAAS | MAAS version | 3.6 · 3.5 · none |
+| *Canonical infrastructure:* MicroCloud | MicroCloud membership | member · none |
 
-Group-by can use any of these attributes, plus device type, region and Ubuntu release.
+Group-by can use any of these attributes, plus site, device type, region and Ubuntu release.
 
 ## Data structure (`js/data.js`)
 

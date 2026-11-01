@@ -73,10 +73,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .p-tabs__item[aria-selected="true"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; background: var(--ink); }
 .p-tabs__item:hover { color: var(--ink); }
 .p-tabs__num { display: block; font-size: .6875rem; text-transform: uppercase; letter-spacing: .08em; color: var(--faint); margin-bottom: 2px; }
-.p-tab-intro { color: var(--muted); font-size: .9375rem; margin: 14px 0 18px; max-width: 95ch; }
 
 /* Toolbar */
-.p-toolbar { display: flex; flex-wrap: wrap; gap: 20px 28px; align-items: flex-end; padding-bottom: 14px; }
+.p-toolbar { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 20px 28px; align-items: flex-end; padding-bottom: 14px; }
 .p-field { display: flex; flex-direction: column; gap: 6px; }
 .p-field[hidden] { display: none; }
 .p-field--grow { flex: 1 1 320px; }
@@ -230,7 +229,6 @@ body[data-tab="3"] .insights__body, body[data-tab="4"] .insights__body { grid-te
   .p-heading { font-size: 1.75rem; }
   .p-subtitle { font-size: .9375rem; }
   .p-tabs__item { margin-right: 16px; padding-right: 8px; }
-  .p-tab-intro { font-size: .875rem; }
   /* controls */
   .p-toolbar { gap: 14px; }
   .p-toolbar > .p-field { width: 100%; }
