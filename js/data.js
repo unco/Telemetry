@@ -139,6 +139,22 @@ window.TL = window.TL || {};
   // Neutral view: every flow in one colour (palette slate), no breakdown.
   ATTRIBUTES.neutral = { label: 'Neutral', short: 'Neutral', values: [{ id: 'all', label: 'All telemetry', color: '#4C6E87' }] };
   ATTRIBUTES.health = { label: 'Health', short: 'Health', ordinal: true, values: HEALTH_BANDS };
+  // Sustainability attributes (colours from the same palette family as health)
+  ATTRIBUTES.lifecycle = { label: 'Lifecycle', short: 'Lifecycle', values: [
+    { id: 'service', label: 'Can stay in service', color: '#3E786C' },
+    { id: 'ending', label: 'Standard support ending', color: '#BC6D4C' },
+    { id: 'software', label: 'Software-only replacement risk', color: '#79331A' },
+    { id: 'refresh', label: 'Hardware due for refresh', color: '#A7A880' },
+    { id: 'virtual', label: 'Virtual (no hardware)', color: GREY }] };
+  // Energy bands, highest first; sequential ramp (pale taupe → dark rust), darker = more energy
+  ATTRIBUTES.energy = { label: 'Energy (kWh/month)', short: 'Energy', ordinal: true, values: [
+    { id: 'e5', label: '500+ kWh', color: '#79331A', lo: 500, hi: Infinity },
+    { id: 'e4', label: '250–500 kWh', color: '#AC4E2A', lo: 250, hi: 500 },
+    { id: 'e3', label: '100–250 kWh', color: '#BC6D4C', lo: 100, hi: 250 },
+    { id: 'e2', label: '50–100 kWh', color: '#BD876F', lo: 50, hi: 100 },
+    { id: 'e1', label: '25–50 kWh', color: '#BE9D87', lo: 25, hi: 50 },
+    { id: 'e0', label: 'Under 25 kWh', color: '#D4C0B2', lo: 0, hi: 25 },
+    { id: 'none', label: 'Not measured / virtual', color: GREY }] };
   function healthBand(score) { return score <= 10 ? '0-10' : (Math.floor((score - 1) / 10) * 10 + 1) + '-' + (Math.floor((score - 1) / 10) * 10 + 10); }
 
   // assign palette colours: values marked `color: true` take the next colour
@@ -376,6 +392,11 @@ window.TL = window.TL || {};
     a.neutral = 'all';
     const h = healthAt(d, a, m);
     a.healthScore = h.score; a.healthParts = h.parts; a.health = healthBand(h.score);
+    const su = sustainAt(d, a, m);
+    a.lifecycle = su.cat;
+    a.energyKwh = su.kwh != null && su.measuredBy ? su.kwh : null;
+    a.idle = !!su.idle;
+    a.energy = a.energyKwh == null ? 'none' : ATTRIBUTES.energy.values.filter(function (v) { return v.lo != null && a.energyKwh >= v.lo && a.energyKwh < v.hi; })[0].id;
     return a;
   }
   function publishersFor(d, a) {
@@ -460,7 +481,7 @@ window.TL = window.TL || {};
     const idle = physical && r() < 0.12;
     d.sustain = {
       physical: physical,
-      pro: r() < 0.7 && a.release !== '2004', // the neglected 20.04 device never had Pro attached
+      pro: r() < 0.5 && a.release !== '2004', // about half the fleet has Ubuntu Pro; the neglected 20.04 device never had it
       ageYears: physical ? (a.type === 'edge' ? 0.5 + r() * 6.5 : 1 + r() * 6) : null,
       kwh: !physical ? null : a.type === 'edge' ? 18 + r() * 52 : 220 + r() * 300,
       idle: idle,
@@ -488,15 +509,19 @@ window.TL = window.TL || {};
     // lifecycle status
     if (until < now) {
       out.softwareOnly = !s.pro && (!s.physical || out.ageYears < 7);
+      out.cat = out.softwareOnly ? 'software' : 'refresh';
       out.status = s.pro ? 'Out of support'
         : out.softwareOnly ? 'Out of standard support since ' + monthStr(sup[0]) + '. The hardware is still fine, so replacing it would be for software reasons only; Ubuntu Pro would keep it in service until ' + monthStr(sup[1])
         : 'Out of standard support; Ubuntu Pro would extend it to ' + monthStr(sup[1]);
     } else if (s.physical && out.ageYears >= 7) {
       out.status = 'Hardware due for refresh (7+ years)';
+      out.cat = 'refresh';
     } else if (!s.pro && sup[0] <= addMonths(now, 12)) {
       out.status = 'Standard support ends ' + monthStr(sup[0]) + '; Ubuntu Pro would extend it to ' + monthStr(sup[1]);
+      out.cat = 'ending';
     } else {
       out.status = 'Can stay in service until ' + monthStr(until);
+      out.cat = s.physical ? 'service' : 'virtual';
     }
     return out;
   }
@@ -517,13 +542,15 @@ window.TL = window.TL || {};
     { id: 'health', attr: 'health', label: 'Device health', question: 'How healthy is each device, and where does telemetry from unhealthy devices go?' },
     { id: 'sovereignty', attr: 'sovereignty', label: 'Telemetry residency', question: 'Which residency rule does each device’s telemetry follow, and where does it end up?' },
     { id: 'confidential', attr: 'confidential', label: 'Confidential compute', question: 'Which devices run confidential VMs, and where does their payment telemetry go?' },
+    { id: 'lifecycle', attr: 'lifecycle', label: 'Lifecycle', group: 'Sustainability', question: 'Which devices can stay in service, and which would be replaced for software reasons alone?' },
+    { id: 'energy', attr: 'energy', label: 'Energy', group: 'Sustainability', question: 'How much energy does each device use, and which idle devices are still powered on?' },
     { id: 'stack', attr: 'stack', label: 'Full / partial stack', group: 'Canonical infrastructure', question: 'How much of the fleet runs on a full Canonical stack (MAAS / MicroCloud + Juju)?' },
     { id: 'juju', attr: 'juju', label: 'Juju', group: 'Canonical infrastructure', question: 'Which Juju version is each device running, and where does that telemetry go?' },
     { id: 'jaas', attr: 'jaas', label: 'JAAS', group: 'Canonical infrastructure', question: 'Which devices are managed through JAAS versus self-hosted controllers?' },
     { id: 'maas', attr: 'maas', label: 'MAAS', group: 'Canonical infrastructure', question: 'Which devices are provisioned by MAAS, and on which version?' },
     { id: 'microcloud', attr: 'microcloud', label: 'MicroCloud', group: 'Canonical infrastructure', question: 'Which devices belong to a MicroCloud cluster?' },
   ];
-  const GROUP_BYS = ['device', 'health', 'site', 'juju', 'jaas', 'maas', 'microcloud', 'stack', 'sovereignty', 'confidential', 'type', 'region', 'release'];
+  const GROUP_BYS = ['device', 'health', 'lifecycle', 'energy', 'site', 'juju', 'jaas', 'maas', 'microcloud', 'stack', 'sovereignty', 'confidential', 'type', 'region', 'release'];
 
   Object.assign(TL, {
     MONTHS: MONTHS, monthLabel: monthLabel,

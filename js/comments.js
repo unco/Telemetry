@@ -20,9 +20,15 @@
  */
 (function (TL) {
   'use strict';
-  const KEY = 'tl.insights.comments.v10';
+  const KEY = 'tl.insights.comments.v11';
 
   const SEED = [
+    { anchor: { view: 'lifecycle', groupBy: 'device', node: 'device:ldn-plant-04', period: null },
+      author: 'Sustainability lead', body: 'ldn-plant-04 is on the replacement list, but the hardware has years left. Attaching Ubuntu Pro would keep it in service until April 2030 and avoid buying a new device.' },
+    { anchor: { view: 'lifecycle', groupBy: 'lifecycle', node: 'lifecycle:ending', period: '2026-04' },
+      author: 'Platform engineering', body: '22.04 standard support ends next April. Six devices without Ubuntu Pro are flagged: we either upgrade them to 26.04 or attach Pro, rather than replacing hardware.' },
+    { anchor: { view: 'energy', groupBy: 'site', node: 'site:dc', period: null },
+      author: 'Infrastructure ops · EMEA', body: 'fra-depot-01 and par-depot-01 sit at 5–6% utilisation but each draws over 200 kWh/month. Candidates to consolidate onto one host.' },
     { anchor: { view: 'health', groupBy: 'juju', node: 'juju:2.9', period: null },
       author: 'Platform engineering', body: 'Juju 2.9 devices average under 50 on health, against high 70s for 4.1. Every component is lower: patching, snap refreshes, stability and reporting. The old agents are the common factor.' },
     { anchor: { view: 'health', groupBy: 'device', node: 'device:nyc-cloud-01', period: '2026-06' },

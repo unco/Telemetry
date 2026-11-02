@@ -25,13 +25,14 @@ Prototype of the **Insights** page (Telemetry product): a single-page Sankey. Se
 - Sustainability signals are device attributes joined in the control plane (keep payloads light), shown in the device tooltip, separate from health.
 - Layer 1 Lifecycle: hardware age, supported-until (standard vs Ubuntu Pro/ESM), flag replacement "for software reasons alone".
 - Layer 2 Energy: monthly kWh band per physical device, measured via Redfish (BMC) on servers or RAPL via landscape-client (Kepler-style); unmeasured/virtual shown as such; idle-but-powered flag.
+- Both layers are also views (Sustainability ▸ Lifecycle, Energy) and group-by options.
 - Only these two layers are intended; there is deliberately no third layer.
 - No snapd / telemetry endpoint wording in the subtitle or tooltips.
 
 ## Sankey rules agreed with the user
 - Columns are fixed: **Device → Publisher → Policy → Destination**. Only column 1 changes.
 - A **view** colours devices (and their flows end to end) by one attribute, e.g. Juju version. Views never change columns.
-- View selector is a dropdown starting on **Neutral** (one flow colour): Neutral · Device health · Telemetry residency · Confidential compute · Canonical infrastructure ▸ (Full/partial stack, Juju, JAAS, MAAS, MicroCloud).
+- View selector is a dropdown starting on **Neutral** (one flow colour): Neutral · Device health · Telemetry residency · Confidential compute · Sustainability ▸ (Lifecycle, Energy) · Canonical infrastructure ▸ (Full/partial stack, Juju, JAAS, MAAS, MicroCloud).
 - No intro/description text and no "synthetic data" note under the page header.
 - **Group by** replaces the device column with that attribute's values (e.g. Juju 4.1 / 3.6 / none); publisher, policy and destination stay intact.
 - Single page, no tabs: view + group by + comments + timeline all available. Opens on Neutral view, devices ungrouped, "Compare to: nothing" (no deltas until chosen). "Reset comments" is a footer link.

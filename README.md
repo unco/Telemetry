@@ -97,7 +97,7 @@ Before the incident, the fleet average was 73 and factories averaged 69.
 
 Two SREs discuss and resolve the incident in a comment thread. To find it, choose **Device health** and group by **Site**, then open **Factory floor**. The thread's comments show as timeline markers from June to September.
 
-## Sustainability (device tooltip)
+## Sustainability (views and device tooltip)
 
 Sustainability signals are **device attributes**, joined in the control plane from what the fleet already reports, not extra payload. They're kept separate from health and shown in each device's tooltip (`sustainAt` in `js/data.js`).
 
@@ -113,6 +113,10 @@ For example, `ldn-plant-04` is on 20.04 without Pro. Its hardware is 6 years old
 - **Edge devices:** CPU power counters (RAPL) read by `landscape-client`, the approach used by the open-source tool Kepler.
 - **Edge devices without `landscape-client`:** shown as not measured.
 - **Virtual machines:** shown as not attributed.
+
+**Views.** Both layers are also views (and group-by options) under **Sustainability** in the view dropdown:
+- **Lifecycle** colours devices by status: can stay in service, standard support ending, software-only replacement risk, hardware due for refresh, or virtual. The KPI counts devices at software-only risk plus those whose support is ending; it rises from April 2026, a year before 22.04 standard support ends, then falls as devices upgrade to 26.04.
+- **Energy** colours devices by monthly kWh band, on a sequential pale-taupe-to-rust ramp. Unmeasured and virtual devices are grey. The KPI shows total measured energy and how many idle devices are still powered on.
 
 ## Views
 

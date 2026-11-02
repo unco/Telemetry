@@ -222,6 +222,20 @@
       Object.keys(agg.nodes).forEach(function (k) { const n = agg.nodes[k]; if (n.dim === 'publisher') pubs[k] = 1; if (n.dim === 'destination') dests[k] = 1; });
       items.push(kpi('Pipeline', Object.keys(pubs).length + ' <span class="p-kpi__unit">snaps → </span>' + Object.keys(dests).length + ' <span class="p-kpi__unit">destinations</span>',
         'Pick a view to colour flows by an attribute'));
+    } else if (view().attr === 'lifecycle' && !iso) {
+      // the actionable number: devices that would be replaced for software reasons alone
+      const sw = counts.software || 0, end = counts.ending || 0;
+      items.push(kpi('<span class="dot" style="background:' + TL.valueOf('lifecycle', 'software').color + '"></span>Software-only replacement risk',
+        sw + ' <span class="p-kpi__unit">device' + (sw === 1 ? '' : 's') + '</span>' + (end ? ' + ' + end + ' <span class="p-kpi__unit">with support ending</span>' : ''),
+        '<span class="p-dist">' + bar + '</span>',
+        t.time ? sparkline(TL.MONTHS.map(function (_, m) { const c = deviceCounts(m, 'lifecycle'); return (c.software || 0) + (c.ending || 0); }), TL.valueOf('lifecycle', 'ending').color) : ''));
+    } else if (view().attr === 'energy' && !iso) {
+      // total measured energy, and what idle-but-powered devices are using
+      const e = energyAt(pi);
+      items.push(kpi('Measured energy',
+        (e.total >= 1000 ? (e.total / 1000).toFixed(1) + ' <span class="p-kpi__unit">MWh/month</span>' : Math.round(e.total) + ' <span class="p-kpi__unit">kWh/month</span>'),
+        e.idle + ' idle device' + (e.idle === 1 ? '' : 's') + ' still powered on · ' + Math.round(e.idleKwh) + ' kWh/month<span class="p-dist">' + bar + '</span>',
+        t.time ? sparkline(TL.MONTHS.map(function (_, m) { return energyAt(m).total; }), TL.valueOf('energy', 'e4').color) : ''));
     } else if (view().attr === 'health' && !iso) {
       // health is a score: show the fleet average and its trend
       const avg = avgHealth(pi);
@@ -260,6 +274,18 @@
       seen[x.device] = 1; sum += x.healthScore; n++;
     });
     return n ? sum / n : 0;
+  }
+  // measured energy across (filtered) devices in month m, plus the idle-but-powered share
+  function energyAt(m) {
+    const seen = {}, f = filterFn(); let total = 0, idle = 0, idleKwh = 0;
+    TL.snapshot(m).forEach(function (x) {
+      if (seen[x.device] || (f && !f(x))) return;
+      seen[x.device] = 1;
+      if (x.energyKwh == null) return;
+      total += x.energyKwh;
+      if (x.idle) { idle++; idleKwh += x.energyKwh; }
+    });
+    return { total: total, idle: idle, idleKwh: idleKwh };
   }
   function bandOf(score) {
     score = Math.round(score);
