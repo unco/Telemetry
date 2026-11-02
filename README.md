@@ -40,7 +40,7 @@ Device names say where the device is: `<region>-<site>-<nn>`, e.g. `fra-plant-01
 
 Site and Environment are **manual** keys: labels people assign, such as Landscape tags. Some devices start without one, and grouping by that key shows them as an **Unassigned** stream.
 
-- **Assigning:** in a pinned device tooltip (click the device), an unassigned key shows an **Assign** link. On hover it says "click the device to assign" instead, since hover tooltips can't be clicked.
+- **Assigning:** an unassigned key shows a blue **Assign** link in the device tooltip. Click (or tap) the device once to open the tooltip, then click Assign. On touch screens there's no hover preview, so the first tap opens the tooltip straight away.
 - **The modal:** it has a text field that autocompletes to the key's existing values, including near matches (typing `factory2` also shows Factory floor), so people reuse values where they can.
   - If the text isn't an existing value, the list offers **+ Create "factory2" as a new site**, and the button changes to **Create and assign**.
   - An exact match, ignoring case, reuses the existing value instead of creating a duplicate.

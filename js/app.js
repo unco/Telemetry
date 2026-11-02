@@ -546,9 +546,7 @@
         let val = esc(TL.valueOf(k, a[k]).label);
         if (a[k] === 'unassigned') {
           // manual key with no label: offer to assign it (only clickable once the tooltip is pinned)
-          val = '<span class="tooltip__band">Unassigned</span> ' + (pinned === id
-            ? '<a href="#" class="tooltip__assign" data-assign="' + k + '">Assign</a>'
-            : '<span class="tooltip__band">· click the device to assign</span>');
+          val = '<a href="#" class="tooltip__assign" data-assign="' + k + '">Assign</a>';
         }
         return '<dt>' + esc(TL.ATTRIBUTES[k].short) + '</dt><dd' + (k === view().attr ? ' class="is-view"' : '') + '>' + val + '</dd>';
       }).join('') + '</dl>';
@@ -615,7 +613,11 @@
   });
 
   // chart interactions (delegated)
+  let lastPointer = 'mouse'; // 'mouse' | 'touch' | 'pen', from the latest pointer event on the chart
   el.svg.addEventListener('mousemove', function (e) {
+    // Touch: no hover preview. iOS Safari treats a tap that changes the page on hover as a
+    // hover and drops the click, so a first tap would only show the preview, not open the tooltip.
+    if (lastPointer === 'touch') return;
     const n = e.target.closest('[data-node]'), l = e.target.closest('[data-link]');
     if (n) {
       if (state.hover !== n.dataset.node) { state.hover = n.dataset.node; render(); }
@@ -850,8 +852,9 @@
   window.addEventListener('resize', function () { if (window.innerWidth > 760) setNav(false); });
 
   // touch has no hover: show the tooltip for whatever was tapped
-  let lastPointer = 'mouse';
   el.svg.addEventListener('pointerdown', function (e) { lastPointer = e.pointerType; });
+  // a real mouse moving again switches hover previews back on (e.g. touchscreen laptops)
+  el.svg.addEventListener('pointermove', function (e) { if (e.pointerType === 'mouse') lastPointer = 'mouse'; });
   el.svg.addEventListener('click', function (e) {
     if (lastPointer !== 'touch') return;
     const n = e.target.closest('[data-node]'), l = e.target.closest('[data-link]');

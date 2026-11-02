@@ -318,7 +318,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .tooltip:not(.is-pinned) .tooltip__acc summary::after { opacity: .5; }
 
 /* Assign link in tooltips */
-.tooltip__assign { color: #8fc1ff; margin-left: 4px; }
+.tooltip__assign { color: #8fc1ff; text-decoration: underline; }
 
 /* Modal + autocomplete */
 .p-modal { border: 0; padding: 0; width: min(440px, calc(100vw - 32px)); border-radius: 2px; box-shadow: 0 8px 32px rgba(0,0,0,.3); }
