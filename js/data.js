@@ -190,7 +190,12 @@ window.TL = window.TL || {};
     { id: 'landscape', label: 'landscape-client', note: 'Fleet management agent' },
     { id: 'juju', label: 'juju', canonical: true, note: 'Application operations' },
     { id: 'maas', label: 'maas', canonical: true, note: 'Bare-metal provisioning' },
-    { id: 'microcloud', label: 'microcloud', canonical: true, note: 'Edge/private cloud cluster' }] };
+    { id: 'microcloud', label: 'microcloud', canonical: true, note: 'Edge/private cloud cluster' },
+    // home-lab snaps (hobby fleet)
+    { id: 'homeauto', label: 'home-automation', note: 'Home automation hub' },
+    { id: 'media', label: 'media-server', note: 'Media library and streaming' },
+    { id: 'filesync', label: 'file-sync', note: 'File sync and backup' },
+    { id: 'dns', label: 'dns-filter', note: 'Network-wide DNS filtering' }] };
   const POLICIES = { label: 'Policy', values: [
     { id: 'standard', label: 'Standard (anonymised)' },
     { id: 'redact', label: 'PII redaction' },
@@ -228,14 +233,15 @@ window.TL = window.TL || {};
     { id: 'R5', at: 'endpoint', when: { sovereignty: 'uk' }, policy: 'uk-res', to: [['lake-uk', 0.75], ['archive', 0.25]] },
     { id: 'R6', at: 'snapd', when: { publisher: ['pos', 'shelfcam'] }, policy: 'redact', to: [['lake-us', 0.6], ['observability', 0.25], ['siem', 0.15]] },
     { id: 'R7', at: 'endpoint', when: { publisher: ['plc', 'predmaint', 'coldchain'] }, policy: 'ot', to: [['observability', 0.45], ['itsm', 0.35], ['lake-us', 0.2]] },
+    { id: 'R9', at: 'endpoint', when: { publisher: ['homeauto', 'media', 'filesync', 'dns'] }, policy: 'standard', to: [['observability', 1]] },
     { id: 'R8', at: 'endpoint', when: {}, policy: 'standard', to: [['observability', 0.5], ['cmdb', 0.25], ['siem', 0.1], ['lake-us', 0.15]] }
   ];
   function route(attrs, publisher) {
-    const ctx = Object.assign({ publisher: publisher }, attrs);
     for (let i = 0; i < ROUTING.length; i++) {
       const r = ROUTING[i];
       const ok = Object.keys(r.when).every(function (k) {
-        const v = r.when[k]; return Array.isArray(v) ? v.indexOf(ctx[k]) >= 0 : ctx[k] === v;
+        const have = k === 'publisher' ? publisher : attrs[k];
+        const v = r.when[k]; return Array.isArray(v) ? v.indexOf(have) >= 0 : have === v;
       });
       if (ok) return r;
     }
@@ -244,6 +250,13 @@ window.TL = window.TL || {};
   // ---- Devices (synthetic, seeded) ------------------------------------
   const REGION_SOV = { fra: 'eu', par: 'eu', ldn: 'uk' };
   const DEVICES = [];
+  // Fleet size for demos, chosen only by URL: ?fleet=hobby | mid (default) | enterprise
+  const FLEET = (function () {
+    let f = null;
+    try { f = (typeof TL_FLEET !== 'undefined' && TL_FLEET) || new URLSearchParams(location.search).get('fleet'); } catch (e) { /* no URL (tests) */ }
+    return ['hobby', 'mid', 'enterprise'].indexOf(f) >= 0 ? f : 'mid';
+  })();
+  const ENTERPRISE_SIZE = 5000;
   const plan = [
     ['fra', 'metal', 3], ['fra', 'edge', 3], ['fra', 'k8s', 1], ['fra', 'vm', 1],
     ['par', 'metal', 1], ['par', 'edge', 3], ['par', 'vm', 1],
@@ -253,7 +266,8 @@ window.TL = window.TL || {};
     ['sgp', 'metal', 1], ['sgp', 'edge', 3], ['sgp', 'vm', 1]
   ];
   const BASE_RATE = { pos: 900, shelfcam: 1400, signage: 120, coldchain: 300, plc: 1100, predmaint: 700,
-    inventory: 800, order: 1000, erp: 500, payment: 300, landscape: 350, juju: 350, maas: 250, microcloud: 300 };
+    inventory: 800, order: 1000, erp: 500, payment: 300, landscape: 350, juju: 350, maas: 250, microcloud: 300,
+    homeauto: 600, media: 250, filesync: 400, dns: 900 };
   const SITE_BY_TYPE = {
     edge: { store: 60, factory: 40 }, metal: { dc: 40, factory: 35, datacentre: 25 },
     k8s: { datacentre: 50, cloud: 50 }, vm: { cloud: 70, datacentre: 30 }
@@ -268,9 +282,7 @@ window.TL = window.TL || {};
   };
   const TYPE_SCALE = { metal: 1.4, k8s: 1.2, vm: 0.9, edge: 1 };
 
-  plan.forEach(function (p) {
-    for (let i = 1; i <= p[2]; i++) {
-      const region = p[0], type = p[1];
+  function makeDevice(region, type) {
       const a = { region: region, type: type, site: pick(SITE_BY_TYPE[type]) };
       a.release = pick({ '2204': 45, '2404': 55 });
       a.maas = type === 'metal' ? pick({ '3.6': 45, '3.5': 35, none: 20 }) : type === 'edge' ? pick({ '3.6': 12, '3.5': 10, none: 78 }) : 'none';
@@ -298,14 +310,44 @@ window.TL = window.TL || {};
 
       const scale = TYPE_SCALE[type] * (0.6 + rnd() * 0.8);
       const growth = -0.01 + rnd() * 0.04;
-      DEVICES.push({
+      return {
         id: null, // assigned below as <region>-<site>-<nn>
         attrs: a, extras: extras, changes: changes,
         onboarded: chance(0.8) ? 0 : int(1, 10),
         scale: scale, growth: growth
+      };
+  }
+
+  // A hobbyist's home lab: six hand-made devices running home snaps
+  const HOBBY = [
+    ['home-pi-01', 'edge', '2404', ['homeauto', 'dns'], false, 'none', 'none'],
+    ['home-pi-02', 'edge', '2204', ['homeauto'], true, 'member', 'none'],
+    ['media-nuc', 'metal', '2404', ['media', 'filesync'], true, 'member', 'none'],
+    ['nas-01', 'metal', '2204', ['filesync'], false, 'none', 'none'],
+    ['lab-vm-01', 'vm', '2404', ['homeauto', 'media'], true, 'none', '3.6'],
+    ['lab-vm-02', 'vm', '2604', ['dns'], false, 'none', 'none']
+  ];
+  // Enterprise devices are generated after the 38 mid devices, so those 38 stay identical
+  const EXTRAS = [];
+  if (FLEET === 'hobby') {
+    HOBBY.forEach(function (h) {
+      DEVICES.push({
+        id: h[0], attrs: { region: 'ldn', type: h[1], site: 'home', release: h[2], maas: 'none', microcloud: h[5],
+          juju: h[6], jaas: h[6] === 'none' ? 'none' : 'self', sovereignty: 'none', confidential: 'none', consent: 'optin' },
+        extras: { landscape: h[4], apps: h[3] }, changes: h[2] === '2204' ? [{ month: 7, attrs: { release: '2604' } }] : [],
+        onboarded: 0, scale: 0.15 + rnd() * 0.2, growth: rnd() * 0.02
       });
+    });
+  } else {
+    plan.forEach(function (p) { for (let i = 1; i <= p[2]; i++) DEVICES.push(makeDevice(p[0], p[1])); });
+    if (FLEET === 'enterprise') {
+      while (DEVICES.length + EXTRAS.length < ENTERPRISE_SIZE) {
+        plan.forEach(function (p) {
+          for (let i = 1; i <= p[2] && DEVICES.length + EXTRAS.length < ENTERPRISE_SIZE; i++) EXTRAS.push(makeDevice(p[0], p[1]));
+        });
+      }
     }
-  });
+  }
 
   function deriveStack(a) {
     const layers = (a.maas !== 'none') + (a.microcloud === 'member') + (a.juju !== 'none');
@@ -321,7 +363,7 @@ window.TL = window.TL || {};
     { id: 'policy', label: 'Policy compliance', weight: 0.15 },
     { id: 'stability', label: 'Stability (crash rate)', weight: 0.10 }
   ];
-  DEVICES.forEach(function (d, i) {
+  function initHealth(d, i) {
     const r = mulberry32(7919 * (i + 1));
     const neglected = r() < 0.2; // devices nobody is looking after
     const ageing = !neglected && r() < 0.3; // patched, but slowly
@@ -347,7 +389,8 @@ window.TL = window.TL || {};
       d.changes.push({ month: 10, attrs: {}, note: 'Refreshed to opcua-connector r216 (fix)' });
       d.changes.sort(function (x, y) { return x.month - y.month; });
     }
-  });
+  }
+  DEVICES.forEach(initHealth);
 
   // ---- Fleet incident (Jun–Sep 2026) --------------------------------------
   // A bad opcua-connector revision (r214) crash-loops on factory devices.
@@ -415,7 +458,7 @@ window.TL = window.TL || {};
   // ---- Dimensions used as Sankey columns ------------------------------
   // Device names say where a device is: <region>-<site>-<nn>, e.g. fra-plant-01.
   // Sorted by region, then site, so related devices sit together in column 1.
-  const SITE_CODE = { store: 'store', factory: 'plant', dc: 'depot', datacentre: 'dc', cloud: 'cloud' };
+  const SITE_CODE = { store: 'store', factory: 'plant', dc: 'depot', datacentre: 'dc', cloud: 'cloud', home: 'home' };
   const REGION_ORDER = ['fra', 'par', 'ldn', 'nyc', 'sfo', 'sgp'];
   const SITE_ORDER = ['store', 'factory', 'dc', 'datacentre', 'cloud'];
   DEVICES.sort(function (x, y) {
@@ -423,14 +466,22 @@ window.TL = window.TL || {};
       (SITE_ORDER.indexOf(x.attrs.site) - SITE_ORDER.indexOf(y.attrs.site));
   });
   const counters = {};
-  DEVICES.forEach(function (d) {
+  function nameDevice(d) {
+    if (d.id) return; // hobby devices are named by hand
     const key = d.attrs.region + '-' + SITE_CODE[d.attrs.site];
     counters[key] = (counters[key] || 0) + 1;
     d.id = key + '-' + String(counters[key]).padStart(2, '0');
-  });
+  }
+  DEVICES.forEach(nameDevice);
+  // enterprise extras: health seeded after the 38, named after them, appended at the end
+  EXTRAS.forEach(function (d, j) { initHealth(d, DEVICES.length + j); });
+  EXTRAS.forEach(nameDevice);
+  Array.prototype.push.apply(DEVICES, EXTRAS);
 
+  if (FLEET === 'hobby') ATTRIBUTES.site.values.splice(ATTRIBUTES.site.values.length - 1, 0, { id: 'home', label: 'Home lab' });
   const DIMENSIONS = {
-    device: { label: 'Device', values: DEVICES.map(function (d) { return { id: d.id, label: d.id }; }) },
+    // '__others' collects devices outside the top N when a fleet is too big to show every device
+    device: { label: 'Device', values: DEVICES.map(function (d) { return { id: d.id, label: d.id }; }).concat([{ id: '__others', label: 'Others', others: true }]) },
     publisher: PUBLISHERS, policy: POLICIES, destination: DESTINATIONS
   };
   Object.keys(ATTRIBUTES).forEach(function (k) { DIMENSIONS[k] = ATTRIBUTES[k]; });
@@ -456,7 +507,10 @@ window.TL = window.TL || {};
         const r = route(a, pub);
         const base = BASE_RATE[pub] * vol * (pub === 'plc' && INCIDENT.volume[m] ? INCIDENT.volume[m] : 1);
         r.to.forEach(function (t) {
-          facts.push(Object.assign({ device: d.id, publisher: pub, policy: r.policy, destination: t[0], rule: r.id, count: base * t[1] }, a));
+          // a fact inherits the device's attributes (shared, not copied: matters at 5,000 devices)
+          const f = Object.create(a);
+          f.device = d.id; f.publisher = pub; f.policy = r.policy; f.destination = t[0]; f.rule = r.id; f.count = base * t[1];
+          facts.push(f);
         });
       });
     });
@@ -586,8 +640,8 @@ window.TL = window.TL || {};
       while (out.length < n) { const d = DEVICES[Math.floor(r() * DEVICES.length)]; if (out.indexOf(d) < 0) out.push(d); }
       return out;
     };
-    pickSome(4).forEach(function (d) { d.attrs.site = 'unassigned'; });
-    pickSome(3).forEach(function (d) { d.attrs.environment = 'unassigned'; });
+    pickSome(Math.max(1, Math.round(DEVICES.length * 0.105))).forEach(function (d) { d.attrs.site = 'unassigned'; });
+    pickSome(Math.max(1, Math.round(DEVICES.length * 0.08))).forEach(function (d) { d.attrs.environment = 'unassigned'; });
   })();
   const SITE_FROM_HOST = { store: 'store', plant: 'factory', depot: 'dc', dc: 'datacentre', cloud: 'cloud' };
   function clearCache() { Object.keys(cache).forEach(function (k) { delete cache[k]; }); }
@@ -621,7 +675,7 @@ window.TL = window.TL || {};
   }
 
   Object.assign(TL, {
-    MANUAL_KEYS: MANUAL_KEYS, assign: assign, suggest: suggest, addValue: addValue,
+    FLEET: FLEET, MANUAL_KEYS: MANUAL_KEYS, assign: assign, suggest: suggest, addValue: addValue,
     MONTHS: MONTHS, monthLabel: monthLabel,
     ATTRIBUTES: ATTRIBUTES, DIMENSIONS: DIMENSIONS, ROUTING: ROUTING, PALETTE: PALETTE, HEALTH_COMPONENTS: HEALTH_COMPONENTS, HEALTH_RAMP: HEALTH_RAMP,
     DEVICES: DEVICES, VIEWS: VIEWS, GROUP_BYS: GROUP_BYS, GROUP_BY_MENU: GROUP_BY_MENU, GROUP_BY_LABELS: GROUP_BY_LABELS,

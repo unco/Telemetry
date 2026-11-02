@@ -18,6 +18,7 @@
    * opts.filter(f)  – include fact?
    * opts.segAttr    – attribute to split flows by (the view)
    * opts.focus(f)   – is fact on the focused node's path?
+   * opts.col0(f)    – optional value to use for column 1 instead of f[stages[0]]
    */
   function aggregate(facts, stages, opts) {
     opts = opts || {};
@@ -32,8 +33,10 @@
       total += c; addSeg(totalSeg, sv, c);
       let prev = null;
       for (let s = 0; s < stages.length; s++) {
-        const id = stages[s] + ':' + fact[stages[s]];
-        const n = nodes[id] || (nodes[id] = { id: id, dim: stages[s], val: fact[stages[s]], col: s, value: 0, f: 0, seg: {}, segF: {} });
+        // opts.col0 can remap column 1 (e.g. devices outside the top N become 'Others')
+        const val = s === 0 && opts.col0 ? opts.col0(fact) : fact[stages[s]];
+        const id = stages[s] + ':' + val;
+        const n = nodes[id] || (nodes[id] = { id: id, dim: stages[s], val: val, col: s, value: 0, f: 0, seg: {}, segF: {} });
         n.value += c; n.f += fo; addSeg(n.seg, sv, c); if (fo) addSeg(n.segF, sv, fo);
         if (prev) {
           const key = prev + '>' + id;
@@ -75,11 +78,16 @@
   function layout(agg, stages, width, height, o) {
     o = Object.assign({ nodeWidth: 12, marginX: 30, marginRight: 190, marginY: 6 }, o || {});
     const innerW = width - o.marginX - o.marginRight, innerH = height - o.marginY * 2;
-    const cols = stages.map(function (dim) {
-      return TL.DIMENSIONS[dim].values
+    const cols = stages.map(function (dim, ci) {
+      const c = TL.DIMENSIONS[dim].values
         .map(function (v) { return agg.nodes[dim + ':' + v.id]; })
         .filter(function (n) { return n && n.value > 0.01; });
+      // o.order0 can set column 1's order (e.g. ranked top N, Others last)
+      if (ci === 0 && o.order0) c.sort(function (a, b) { return (o.order0[a.val] != null ? o.order0[a.val] : 1e9) - (o.order0[b.val] != null ? o.order0[b.val] : 1e9); });
+      return c;
     });
+    // o.minNode0: minimum bar height in column 1 so names stay readable (flows stay proportional)
+    const minH = function (ci) { return ci === 0 && o.minNode0 ? o.minNode0 : 1; };
     const pads = cols.map(function (c) { return c.length > 14 ? 4 : c.length > 8 ? 10 : 16; });
     let ky = Infinity;
     cols.forEach(function (c, i) {
@@ -92,8 +100,9 @@
     cols.forEach(function (c, ci) {
       let y = o.marginY; // top-aligned
       c.forEach(function (n) {
-        const p = Object.assign({}, n, { x: o.marginX + ci * step, y: y, ht: Math.max(1, n.value * ky), w: o.nodeWidth, last: ci === stages.length - 1, outs: [], ins: [] });
-        y += n.value * ky + pads[ci];
+        const ht = Math.max(minH(ci), n.value * ky);
+        const p = Object.assign({}, n, { x: o.marginX + ci * step, y: y, ht: ht, w: o.nodeWidth, last: ci === stages.length - 1, outs: [], ins: [] });
+        y += (ci === 0 && o.minNode0 ? ht : n.value * ky) + pads[ci];
         placed[n.id] = p; nodes.push(p);
       });
     });
@@ -111,7 +120,9 @@
       let off = 0; n.outs.forEach(function (l) { l.sy = n.y + off; off += l.w; });
       off = 0; n.ins.forEach(function (l) { l.ty = n.y + off; off += l.w; });
     });
-    return { nodes: nodes, links: links, width: width, height: height, ky: ky };
+    // a column with minimum heights can run past the planned height: grow to fit
+    const bottom = nodes.reduce(function (mx, n) { return Math.max(mx, n.y + n.ht); }, 0) + o.marginY;
+    return { nodes: nodes, links: links, width: width, height: Math.max(height, Math.ceil(bottom)), ky: ky };
   }
 
   // ---- Rendering ------------------------------------------------------
@@ -122,7 +133,7 @@
    * where the curve is steep (a plain vertical offset would pinch it).
    * At both ends the tangent is horizontal, so the band meets nodes square.
    */
-  const SAMPLES = 48;
+  let SAMPLES = 48; // points per curve; lowered for dense charts (see render)
   function band(l, offset, w) {
     const x0 = l.s.x + l.s.w, x1 = l.t.x, dx = x1 - x0;
     const c0 = x0 + dx * 0.5, c1 = x1 - dx * 0.5;
@@ -181,6 +192,9 @@
       });
       return out;
     }
+    // dense charts (hundreds of flow segments) use fewer points per curve: the difference
+    // isn't visible at that density, but drawing time is
+    SAMPLES = L.links.length > 120 ? 16 : 48;
     const parts = [];
     parts.push('<g class="sk-links">');
     L.links.forEach(function (l) {

@@ -32,6 +32,36 @@ It's a single page with every capability switched on:
 
 **Reset comments** at the bottom of the page restores the seeded comments.
 
+## Fleet size and the ladder
+
+The page adapts to fleet size. For demos, the fleet is chosen with an invisible URL parameter:
+
+| URL | Fleet | What the page does |
+|---|---|---|
+| `?fleet=hobby` | 6 home-lab devices with home snaps (`home-automation`, `media-server`, `file-sync`, `dns-filter`) | Shows every device, with no prompts |
+| none, or `?fleet=mid` | The 38 devices described below | Shows the top 20 devices plus **Others**, with a note explaining what Others holds and offering quick group-bys |
+| `?fleet=enterprise` | 5,000 devices: the same 38, plus generated ones | Opens grouped by Site. Select a group, then **Show devices in this group**, to drill into its top 20 plus Others |
+
+**The ladder** (`LADDER` in `js/app.js`):
+
+| Devices | Default view | Note shown |
+|---|---|---|
+| Up to 15 | Every device | None |
+| 16–30 | Every device | A nudge to group |
+| 31+ | Top 20 plus Others | What Others hides |
+| 100+ | Grouped by Site | How to drill into a group |
+
+**How the top 20 is chosen:**
+- **Ranking follows the view.** Neutral ranks by telemetry volume, Device health by lowest health, Lifecycle by risk, and Energy puts idle devices first, then the biggest energy users.
+- **The column is listed in rank order,** most notable at the top, with Others last.
+- **Membership is frozen to the latest month,** so the list doesn't reshuffle while scrubbing.
+- **Some devices are always shown:** devices with comments in the current view, the selected device, and the device whose tooltip is open.
+- **Minimum height:** in column 1, each named device gets a minimum bar height so its name stays readable. Its flows stay proportional to its real volume.
+
+**What the Others note says:** how much telemetry Others holds and, for Health, Lifecycle and Energy, how many devices needing attention it hides. For example: "Others holds 98% of telemetry and 226 of the 246 unhealthy devices".
+
+**Mid fleet unchanged:** the enterprise fleet generates its extra devices after the original 38, so those 38 keep identical data in both fleets.
+
 ## Devices
 
 Device names say where the device is: `<region>-<site>-<nn>`, e.g. `fra-plant-01`, `nyc-store-02`, `sgp-cloud-01`. Site codes are `store` (retail store), `plant` (factory floor), `depot` (distribution centre), `dc` (data centre) and `cloud` (public cloud). In column 1, devices are sorted by region, then site.

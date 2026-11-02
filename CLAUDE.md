@@ -43,6 +43,10 @@ Prototype of the **Insights** page (Telemetry product): a single-page Sankey. Se
 - No snapd / telemetry endpoint markers in the chart (removed at the user's request).
 - Columns top-aligned (top stream horizontal, others rise into it); flows fairly transparent.
 
+## Fleet size ladder
+- Fleet chosen only by invisible URL param: `?fleet=hobby` (6 home-lab devices) · default/`mid` (38) · `enterprise` (5,000 = the 38 + generated extras; the 38 keep identical data).
+- Ladder: ≤15 every device · 16–30 nudge to group · 31+ top 20 (ranked by the view; frozen to the latest month; commented/selected/open devices always shown; rank order in column 1) + "Others" with a note on what it hides · 100+ opens grouped by Site, drill into a group via "Show devices in this group".
+
 ## Deployment
 - Work branch: `claude/sankey-telemetry-illustration-vkal2f`.
 - Bump the `?v=` cache-busting query on the CSS/JS links in index.html with each deploy (phones cache GitHub Pages assets).

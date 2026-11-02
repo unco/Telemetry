@@ -341,3 +341,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .p-page-footer__link + .p-page-footer__link { margin-left: 16px; }
 .p-combo__opt--create { border-top: 1px solid var(--border); color: var(--link); }
 .p-combo__new { font-weight: 500; }
+
+/* Fleet-size ladder note */
+.p-ladder { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; padding: 10px 14px; margin: 0 0 14px; background: #F3F6FA; border-left: 3px solid var(--link); font-size: .9rem; }
+.p-ladder[hidden] { display: none; }
+.p-ladder p { margin: 0; flex: 1 1 360px; }
+.p-ladder__actions { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: .8125rem; color: var(--muted); }
+.p-chip--small { padding: 2px 10px; font-size: .8125rem; }
+.p-button--small { padding: 3px 10px; font-size: .8125rem; margin-top: 8px; }

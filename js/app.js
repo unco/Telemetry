@@ -16,7 +16,8 @@
 
   const state = {
     view: 'neutral',
-    groupBy: 'device',       // 'device' = one node per device in column 1
+    groupBy: TL.DEVICES.length >= 100 ? 'site' : 'device', // big fleets open grouped
+    scope: null,             // drill-down: { dim, val } limits the chart to one group's devices
     isolate: {},             // { viewId: valueId } — colour only this value
     excluded: {},            // { dim: { valueId: true } }
     query: '',               // device name filter
@@ -30,7 +31,7 @@
     viewSelect: $('view-select'), hlField: $('hl-field'), groupby: $('groupby'),
     groupbyField: $('groupby-field'), hl: $('hl-switch'), hlLabel: $('lbl-hl'), filter: $('group-filter'), question: $('view-question'),
     kpis: $('kpis'), legend: $('legend'), wrap: $('chart-wrap'), svg: $('sankey'), timeline: $('timeline'),
-    comments: $('comments'), tooltip: $('tooltip')
+    comments: $('comments'), tooltip: $('tooltip'), ladder: $('ladder-note')
   };
 
   // ---- derived state --------------------------------------------------
@@ -47,17 +48,96 @@
   function filterDim() { return groupBy() === 'device' ? view().attr : groupBy(); }
   function filterFn() {
     const fd = filterDim(), ex = state.excluded[fd] || {}, q = state.query.trim().toLowerCase();
-    const hasEx = Object.keys(ex).length, useQ = q && groupBy() === 'device';
-    if (!hasEx && !useQ) return null;
-    return function (f) { return !ex[f[fd]] && (!useQ || f.device.indexOf(q) >= 0); };
+    const hasEx = Object.keys(ex).length, useQ = q && groupBy() === 'device', sc = state.scope;
+    if (!hasEx && !useQ && !sc) return null;
+    return function (f) { return (!sc || f[sc.dim] === sc.val) && !ex[f[fd]] && (!useQ || f.device.indexOf(q) >= 0); };
+  }
+
+  // ---- Fleet-size ladder ------------------------------------------------
+  // up to 15 devices: show every device · 16–30: every device + a nudge to group
+  // 31+: top 20 (ranked by the current view) + Others · 100+: open grouped (drill into a group)
+  const LADDER = { nudge: 16, others: 31, top: 20 };
+  const ATTENTION = {
+    health: { label: 'unhealthy devices (health 50 or below)', test: function (a) { return a.healthScore <= 50; } },
+    lifecycle: { label: 'devices at lifecycle risk', test: function (a) { return a.lifecycle === 'software' || a.lifecycle === 'ending'; } },
+    energy: { label: 'idle devices still powered on', test: function (a) { return a.idle; } }
+  };
+  const LC_RISK = { software: 0, ending: 1, refresh: 2, service: 3, virtual: 4 };
+  function rankLabel() {
+    return { health: 'lowest health', lifecycle: 'lifecycle risk', energy: 'idle first, then energy use' }[view().attr] || 'telemetry volume';
+  }
+  // per-device summary for the latest month, honouring filters (ranking is frozen to this month,
+  // so the top N doesn't reshuffle while scrubbing the timeline)
+  function deviceSummary() {
+    const out = {}, f = filterFn();
+    TL.snapshot(LAST).forEach(function (x) {
+      if (f && !f(x)) return;
+      const d = out[x.device] || (out[x.device] = { id: x.device, vol: 0, a: Object.getPrototypeOf(x) });
+      d.vol += x.count;
+    });
+    return out;
+  }
+  let topCache = { key: null, value: null };
+  function topSet() {
+    if (groupBy() !== 'device') { topCache = { key: null, value: null, total: 0 }; return null; }
+    const key = [state.view, JSON.stringify(state.scope), JSON.stringify(state.excluded[filterDim()] || {}), state.query, state.selected, pinned,
+      Object.keys(TL.comments.counts(ctx())).join()].join('|');
+    if (topCache.key === key) return topCache.value;
+    const sum = deviceSummary(), ids = Object.keys(sum);
+    let value = null;
+    if (ids.length >= LADDER.others) {
+      const v = view().attr;
+      const score = function (d) {
+        const a = d.a;
+        if (v === 'health') return a.healthScore;
+        if (v === 'lifecycle') return LC_RISK[a.lifecycle] * 1e9 - d.vol;
+        if (v === 'energy') return (a.idle ? 0 : 1e9) - (a.energyKwh || 0);
+        return -d.vol;
+      };
+      ids.sort(function (x, y) { return score(sum[x]) - score(sum[y]); });
+      const set = {};
+      ids.slice(0, LADDER.top).forEach(function (id) { set[id] = 1; });
+      // always show devices people are discussing, the selected device and the open tooltip
+      Object.keys(TL.comments.counts(ctx())).concat([state.selected, pinned]).forEach(function (n) {
+        if (n && n.indexOf('device:') === 0 && sum[n.slice(7)]) set[n.slice(7)] = 1;
+      });
+      const others = ids.filter(function (id) { return !set[id]; });
+      // column 1 order: ranked devices first (worst/most notable at the top), then pinned ones, then Others
+      const order = { __others: 1e8 };
+      ids.forEach(function (id, i) { if (set[id]) order[id] = i; });
+      const totalVol = ids.reduce(function (s2, id) { return s2 + sum[id].vol; }, 0);
+      const othersVol = others.reduce(function (s2, id) { return s2 + sum[id].vol; }, 0);
+      const att = ATTENTION[v];
+      value = { set: set, order: order, total: ids.length, others: others.length, share: totalVol ? othersVol / totalVol : 0,
+        attention: att ? { label: att.label,
+          inOthers: others.filter(function (id) { return att.test(sum[id].a); }).length,
+          all: ids.filter(function (id) { return att.test(sum[id].a); }).length } : null };
+    }
+    topCache = { key: key, value: value, total: ids.length };
+    return value;
   }
   function focusFn() {
     const id = state.hover || state.selected; if (!id) return null;
     const p = TL.parseNodeId(id);
+    if (p.dim === 'device' && p.val === '__others') {
+      const top = topSet();
+      return top ? function (f) { return !top.set[f.device]; } : null;
+    }
     return function (f) { return f[p.dim] === p.val; };
   }
+  const aggMemo = {};
   function aggAt(m, withFocus) {
-    return S.aggregate(TL.snapshot(m), stages(), { filter: filterFn(), segAttr: view().attr, focus: withFocus ? focusFn() : null });
+    const top = topSet();
+    const focus = withFocus ? focusFn() : null;
+    // without a focus, the aggregate only depends on month + view + filters + top set: cache it
+    if (!focus) {
+      const k = m + '|' + stages().join() + '|' + view().attr + '|' + filterKey() + '|' + (top ? topCache.key : '');
+      if (aggMemo[k]) return aggMemo[k];
+      return (aggMemo[k] = S.aggregate(TL.snapshot(m), stages(), { filter: filterFn(), segAttr: view().attr,
+        col0: top ? function (f) { return top.set[f.device] ? f.device : '__others'; } : null }));
+    }
+    return S.aggregate(TL.snapshot(m), stages(), { filter: filterFn(), segAttr: view().attr, focus: withFocus ? focusFn() : null,
+      col0: top ? function (f) { return top.set[f.device] ? f.device : '__others'; } : null });
   }
   function currentAgg() {
     const m = month(), m0 = Math.floor(m), m1 = Math.min(LAST, Math.ceil(m));
@@ -65,7 +145,21 @@
     return m1 === m0 ? a : S.interpolate(a, aggAt(m1, true), m - m0);
   }
   // device counts by value of an attribute (respecting filters)
-  function deviceCounts(m, attrId) {
+  // Per-month summaries are memoised: they only change when the filters change, not on hover
+  // or playback frames (matters at 5,000 devices). Assignments clear the memo via render().
+  const memo = {};
+  function filterKey() {
+    return [filterDim(), JSON.stringify(state.excluded[filterDim()] || {}), state.query, JSON.stringify(state.scope), groupBy() === 'device', memoEpoch].join('|');
+  }
+  let memoEpoch = 0;
+  function memoised(name, fn) {
+    return function () {
+      const k = name + '|' + Array.prototype.join.call(arguments, '|') + '|' + filterKey();
+      return k in memo ? memo[k] : (memo[k] = fn.apply(null, arguments));
+    };
+  }
+  const deviceCounts = memoised('counts', deviceCountsRaw);
+  function deviceCountsRaw(m, attrId) {
     const seen = {}, out = {}, f = filterFn();
     TL.snapshot(m).forEach(function (x) {
       if (seen[x.device] || (f && !f(x))) return;
@@ -160,6 +254,9 @@
     const firstColour = attr().values.filter(function (x) { return x.color; })[0].color;
     el.question.innerHTML = '<span class="p-question__swatch" style="background:' + firstColour + '"></span>' + esc(v.question);
 
+    const top = topSet();
+    TL.valueOf('device', '__others').label = top ? 'Others (' + top.others.toLocaleString('en-GB') + ' devices)' : 'Others';
+    drawLadder(top);
     const agg = currentAgg();
     const stg = stages();
     // on small screens keep the chart wide enough to read and let it scroll sideways
@@ -167,7 +264,7 @@
     const width = Math.max(minW, el.wrap.clientWidth || 900);
     const n1 = Object.keys(agg.nodes).filter(function (k) { return agg.nodes[k].col === 0; }).length;
     const height = Math.max(460, n1 * (groupBy() === 'device' ? 24 : 62));
-    const L = S.layout(agg, stg, width, height);
+    const L = S.layout(agg, stg, width, height, top ? { order0: top.order, minNode0: 16 } : null);
     lastLayout = L;
 
     let deltas = null;
@@ -206,6 +303,35 @@
     }
   }
 
+  // explains what the chart is showing as the fleet grows, and offers the next step
+  function drawLadder(top) {
+    const parts = [], n = TL.DEVICES.length;
+    const groupBtns = function () {
+      return '<span class="p-ladder__actions">Group by: ' + ['site', 'environment', 'type', 'release'].map(function (k) {
+        return '<button type="button" class="p-chip p-chip--small" data-ladder-group="' + k + '">' + esc(TL.GROUP_BY_LABELS[k] || TL.ATTRIBUTES[k].label) + '</button>';
+      }).join('') + '</span>';
+    };
+    if (state.scope) {
+      parts.push('<p>Showing devices in <strong>' + esc(TL.valueOf(state.scope.dim, state.scope.val).label) + '</strong> (' +
+        esc(TL.ATTRIBUTES[state.scope.dim].label) + '). <a href="#" data-ladder-unscope>Show the whole fleet</a></p>');
+    }
+    if (groupBy() === 'device' && top) {
+      const at = top.attention;
+      let msg = 'Showing the top ' + LADDER.top + ' of ' + top.total.toLocaleString('en-GB') + ' devices by ' + rankLabel() +
+        '. <strong>Others</strong> holds ' + Math.round(top.share * 100) + '% of telemetry';
+      if (at && at.all && at.inOthers) msg += ' and ' + at.inOthers.toLocaleString('en-GB') + ' of the ' + at.all.toLocaleString('en-GB') + ' ' + at.label + '.';
+      else if (at && at.all) msg += '. All ' + at.all + ' ' + at.label + ' are in the top ' + LADDER.top + '.';
+      else msg += '.';
+      parts.push('<p>' + msg + '</p>' + (state.scope ? '' : groupBtns()));
+    } else if (groupBy() === 'device' && topCache.total >= LADDER.nudge) {
+      parts.push('<p>You have ' + topCache.total + ' devices. Grouping keeps this view readable as your fleet grows.</p>' + groupBtns());
+    } else if (groupBy() !== 'device' && n >= 100 && !state.scope) {
+      parts.push('<p>' + n.toLocaleString('en-GB') + ' devices, grouped by ' + esc((TL.GROUP_BY_LABELS[groupBy()] || TL.ATTRIBUTES[groupBy()].label).toLowerCase()) +
+        '. Select a group to see its devices.</p>');
+    }
+    el.ladder.hidden = !parts.length;
+    el.ladder.innerHTML = parts.join('');
+  }
   function drawLegend(stg, L) {
     el.legend.style.width = L.width + 'px';
     el.legend.innerHTML = stg.map(function (d, i) {
@@ -219,7 +345,7 @@
     const t = tab(), a = attr(), pi = periodIndex();
     const counts = deviceCounts(pi, view().attr);
     const items = [];
-    items.push(kpi('Devices reporting', String(counts._total), fmt(agg.total) + ' events/day · ' + (t.time ? TL.monthLabel(TL.MONTHS[pi]) : 'latest month (' + TL.monthLabel(TL.MONTHS[LAST]) + ')')));
+    items.push(kpi('Devices reporting', counts._total.toLocaleString('en-GB'), fmt(agg.total) + ' events/day · ' + (t.time ? TL.monthLabel(TL.MONTHS[pi]) : 'latest month (' + TL.monthLabel(TL.MONTHS[LAST]) + ')')));
     // distribution bar for the view attribute
     const bar = a.values.map(function (v) {
       const c = counts[v.id] || 0; if (!c) return '';
@@ -277,7 +403,8 @@
     return '<div class="p-kpi' + (wide ? ' p-kpi--wide' : '') + '"><div class="p-kpi__label">' + label + '</div><div class="p-kpi__value">' + value + '</div><div class="p-kpi__sub">' + sub + '</div>' + (extra || '') + '</div>';
   }
   // average health score of the (filtered) devices reporting in month m
-  function avgHealth(m) {
+  const avgHealth = memoised('avgHealth', avgHealthRaw);
+  function avgHealthRaw(m) {
     const seen = {}, f = filterFn(); let sum = 0, n = 0;
     TL.snapshot(m).forEach(function (x) {
       if (seen[x.device] || (f && !f(x))) return;
@@ -286,7 +413,8 @@
     return n ? sum / n : 0;
   }
   // measured energy across (filtered) devices in month m, plus the idle-but-powered share
-  function energyAt(m) {
+  const energyAt = memoised('energy', energyAtRaw);
+  function energyAtRaw(m) {
     const seen = {}, f = filterFn(); let total = 0, idle = 0, idleKwh = 0;
     TL.snapshot(m).forEach(function (x) {
       if (seen[x.device] || (f && !f(x))) return;
@@ -436,7 +564,10 @@
       const other = TL.comments.elsewhere(c, sel);
       html += '<div class="comment-panel__node"><span class="p-field__label">' + esc(TL.DIMENSIONS[p.dim].label) + '</span>' +
         '<h2 class="comment-panel__title">' + esc(TL.nodeLabel(sel)) + '</h2>' +
-        '<button type="button" class="p-icon-button comment-panel__close" data-clear="1" aria-label="Close thread">✕</button></div>' +
+        '<button type="button" class="p-icon-button comment-panel__close" data-clear="1" aria-label="Close thread">✕</button>' +
+        (p.dim === groupBy() && p.dim !== 'device' && TL.MANUAL_KEYS.concat(TL.GROUP_BYS).indexOf(p.dim) >= 0
+          ? '<button type="button" class="p-button p-button--small" data-drill="' + esc(sel) + '">Show devices in this group</button>' : '') +
+        '</div>' +
         (list.length ? '<ul class="p-comments">' + list.map(function (x) { return commentHtml(x, false); }).join('') + '</ul>'
                      : '<p class="comment-panel__empty">No comments on this node in this context.</p>') +
         '<form class="p-comment-form" id="cm-form">' +
@@ -531,6 +662,13 @@
     if (!n) return '';
     const v = TL.valueOf(n.dim, n.val) || { label: n.val };
     let body = '';
+    if (n.dim === 'device' && n.val === '__others') {
+      const top = topSet();
+      return '<div class="tooltip__dim">Devices outside the top ' + LADDER.top + '</div><strong>' + esc(v.label) + '</strong>' +
+        '<div>' + fmt(n.value) + ' events/day · ' + Math.round((top ? top.share : 0) * 100) + '% of telemetry</div>' +
+        (top && top.attention && top.attention.inOthers ? '<div>Includes ' + top.attention.inOthers.toLocaleString('en-GB') + ' ' + esc(top.attention.label) + '</div>' : '') +
+        segBreakdown(n.seg, n.value) + '<div class="tooltip__hint">Group devices, or search, to see them individually</div>';
+    }
     if (n.dim === 'device') {
       const d = TL.deviceAt(n.val, periodIndex());
       const a = d.attrs;
@@ -573,6 +711,15 @@
     if (state.selected && TL.PIPELINE.indexOf(TL.parseNodeId(state.selected).dim) < 0) state.selected = null;
   }
 
+  el.ladder.addEventListener('click', function (e) {
+    const g = e.target.closest('[data-ladder-group]');
+    if (g) { hideTip(); state.groupBy = g.dataset.ladderGroup; state.selected = null; rebuildControls(); render(); return; }
+    if (e.target.closest('[data-ladder-unscope]')) {
+      e.preventDefault(); hideTip(); state.scope = null;
+      if (TL.DEVICES.length >= 100) state.groupBy = 'site';
+      rebuildControls(); render();
+    }
+  });
   el.viewSelect.addEventListener('change', function (e) {
     hideTip();
     const prevAttr = view().attr;
@@ -643,7 +790,7 @@
     pressed = null;
     // A device opens its tooltip and keeps it open (clicking it again doesn't close it).
     // It closes on a click outside, a click on another device, or a filter change.
-    if (id && TL.parseNodeId(id).dim === 'device') {
+    if (id && TL.parseNodeId(id).dim === 'device' && TL.parseNodeId(id).val !== '__others') {
       state.selected = id; state.hover = null; render();
       const ev = { clientX: e.clientX, clientY: e.clientY };
       setTimeout(function () { pinTip(ev, id); }, 30);
@@ -774,7 +921,7 @@
         id = TL.addValue(key, chosen.label);
         saveValue(key, id, chosen.label);
       } else id = chosen.value.id;
-      TL.assign(device, key, id);
+      TL.assign(device, key, id); memoEpoch++; topCache.key = null; Object.keys(aggMemo).forEach(function (k) { delete aggMemo[k]; });
       saveAssignment(device, key, id);
       $('reset-assign').hidden = false;
       dlg.close();
@@ -812,6 +959,12 @@
     const r = t.closest('[data-resolve]'); if (r) { TL.comments.toggleResolved(r.dataset.resolve); return; }
     const d = t.closest('[data-delete]'); if (d) { TL.comments.remove(d.dataset.delete); return; }
     const m = t.closest('[data-month]'); if (m && tab().time) { stopPlay(); setMonth(+m.dataset.month); return; }
+    const dr = t.closest('[data-drill]');
+    if (dr) {
+      const p = TL.parseNodeId(dr.dataset.drill);
+      state.scope = { dim: p.dim, val: p.val }; state.groupBy = 'device'; state.selected = null; hideTip();
+      rebuildControls(); render(); return;
+    }
     const g = t.closest('[data-goto]');
     if (g) {
       const a = JSON.parse(g.dataset.goto);
@@ -858,7 +1011,7 @@
   el.svg.addEventListener('click', function (e) {
     if (lastPointer !== 'touch') return;
     const n = e.target.closest('[data-node]'), l = e.target.closest('[data-link]');
-    if (n && TL.parseNodeId(n.dataset.node).dim === 'device') return; // devices pin instead
+    if (n && TL.parseNodeId(n.dataset.node).dim === 'device' && TL.parseNodeId(n.dataset.node).val !== '__others') return; // devices pin instead
     setTimeout(function () {
       if (n) showTip(e, tipForNode(n.dataset.node));
       else if (l) showTip(e, tipForLink(l.dataset.link));
