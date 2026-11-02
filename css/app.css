@@ -343,7 +343,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .p-combo__new { font-weight: 500; }
 
 /* Fleet-size ladder note */
-.p-ladder { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; padding: 10px 14px; margin: 0 0 14px; background: #F3F6FA; border-left: 3px solid var(--link); font-size: .9rem; }
+.p-ladder { position: relative; padding-right: 40px !important; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; padding: 10px 14px; margin: 0 0 14px; background: #F3F6FA; border-left: 3px solid var(--link); font-size: .9rem; }
 .p-ladder[hidden] { display: none; }
 .p-ladder p { margin: 0; flex: 1 1 360px; }
 .p-ladder__actions { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: .8125rem; color: var(--muted); }
@@ -353,3 +353,5 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .p-ladder__text p { margin: 0; }
 .p-ladder__sub { color: var(--muted); font-size: .8125rem; margin-top: 2px !important; }
 .p-ladder__btn { padding: 3px 12px; font-size: .8125rem; background: #fff; }
+.p-ladder__close { position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; border: 0; background: none; color: var(--muted); cursor: pointer; font-size: .8125rem; }
+.p-ladder__close:hover { color: var(--ink); }

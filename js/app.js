@@ -307,6 +307,9 @@
   }
 
   // explains what the chart is showing as the fleet grows, and offers the next step
+  // the grouping reminder can be dismissed for the rest of this browser session
+  const HINT_KEY = 'tl.insights.groupHintDismissed';
+  function hintDismissed() { try { return sessionStorage.getItem(HINT_KEY) === '1'; } catch (e) { return false; } }
   function drawLadder(top) {
     const parts = [], n = TL.DEVICES.length;
     const label = function (k) { return TL.GROUP_BY_LABELS[k] || TL.ATTRIBUTES[k].label; };
@@ -318,14 +321,12 @@
     };
     // the reminder: grouping is ready because most devices are already labelled
     const reminder = function (total, cov) {
-      // prefer the first manual key (Site) once at least half the devices carry it
-      const best = TL.MANUAL_KEYS.filter(function (k) { return (cov[k] || 0) >= total * 0.5; })[0] || TL.MANUAL_KEYS[0];
-      if (cov[best] && cov[best] >= total * 0.5) {
-        return '<strong>' + cov[best] + ' of ' + total + ' devices already have ' + (best === 'environment' ? 'an ' : 'a ') + label(best).toLowerCase() + '.</strong> ' +
-          'As your fleet grows, group by ' + label(best) + ' to keep this view readable.';
-      }
-      return 'You have ' + total + ' devices. Grouping keeps this view readable as your fleet grows.';
+      // suggest the first manual key (Site) once at least half the devices carry it
+      const best = TL.MANUAL_KEYS.filter(function (k) { return (cov[k] || 0) >= total * 0.5; })[0];
+      return best ? 'As your fleet grows, group by ' + label(best) + ' to keep this view readable.'
+                  : 'As your fleet grows, grouping keeps this view readable.';
     };
+    const dismiss = '<button type="button" class="p-ladder__close" data-ladder-dismiss aria-label="Dismiss">✕</button>';
     if (state.scope) {
       parts.push('<p>Showing devices in <strong>' + esc(TL.valueOf(state.scope.dim, state.scope.val).label) + '</strong> (' +
         esc(TL.ATTRIBUTES[state.scope.dim].label) + '). <a href="#" data-ladder-unscope>Show the whole fleet</a></p>');
@@ -338,10 +339,10 @@
       else if (at && at.all) msg += '. All ' + at.all + ' ' + at.label + ' are in the top ' + LADDER.top + '.';
       else msg += '.';
       if (state.scope || top.total >= 100) parts.push('<p>' + msg.charAt(0).toUpperCase() + msg.slice(1) + '</p>');
-      else parts.push('<div class="p-ladder__text"><p>' + reminder(top.total, topCache.coverage) + '</p><p class="p-ladder__sub">' + msg + '</p></div>' +
-        groupBtns(top.total, topCache.coverage));
+      else if (!hintDismissed()) parts.push('<div class="p-ladder__text"><p>' + reminder(top.total, topCache.coverage) + '</p><p class="p-ladder__sub">' + msg + '</p></div>' +
+        groupBtns(top.total, topCache.coverage) + dismiss);
     } else if (groupBy() === 'device' && topCache.total >= LADDER.nudge) {
-      parts.push('<div class="p-ladder__text"><p>' + reminder(topCache.total, topCache.coverage) + '</p></div>' + groupBtns(topCache.total, topCache.coverage));
+      if (!hintDismissed()) parts.push('<div class="p-ladder__text"><p>' + reminder(topCache.total, topCache.coverage) + '</p></div>' + groupBtns(topCache.total, topCache.coverage) + dismiss);
     } else if (groupBy() !== 'device' && n >= 100 && !state.scope) {
       parts.push('<p>' + n.toLocaleString('en-GB') + ' devices, grouped by ' + esc(label(groupBy()).toLowerCase()) +
         '. Select a group to see its devices.</p>');
@@ -729,6 +730,10 @@
   }
 
   el.ladder.addEventListener('click', function (e) {
+    if (e.target.closest('[data-ladder-dismiss]')) {
+      try { sessionStorage.setItem(HINT_KEY, '1'); } catch (err) { /* ignore */ }
+      el.ladder.hidden = true; render(); return;
+    }
     const g = e.target.closest('[data-ladder-group]');
     if (g) { hideTip(); state.groupBy = g.dataset.ladderGroup; state.selected = null; rebuildControls(); render(); return; }
     if (e.target.closest('[data-ladder-unscope]')) {

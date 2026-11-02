@@ -46,7 +46,7 @@ Prototype of the **Insights** page (Telemetry product): a single-page Sankey. Se
 ## Fleet size ladder
 - Fleet chosen only by invisible URL param: `?fleet=hobby` (6 home-lab devices) · default/`mid` (38) · `enterprise` (5,000 = the 38 + generated extras; the 38 keep identical data).
 - Unassigned devices are NOT always shown in the top 20 (decided with the user); they're reached via device search or Group by Site → Unassigned → "Show devices in this group".
-- On mid (and 16–30), the ladder note leads with a reminder that grouping is ready ("34 of 38 devices already have a site…"), quick group-by buttons (plain buttons, no coverage counts); the Others line is secondary.
+- On mid (and 16–30), the ladder note leads with "As your fleet grows, group by Site to keep this view readable." (no counts; dismissible for the session), quick group-by buttons (plain buttons, no coverage counts); the Others line is secondary.
 - Ladder: ≤15 every device · 16–30 nudge to group · 31+ top 20 (ranked by the view; frozen to the latest month; commented/selected/open devices always shown; rank order in column 1) + "Others" with a note on what it hides · 100+ opens grouped by Site, drill into a group via "Show devices in this group".
 
 ## Deployment
