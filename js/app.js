@@ -92,9 +92,14 @@
   }
   function isNeutral() { return view().id === 'neutral'; }
   function buildGroupBy() {
-    el.groupby.innerHTML = TL.GROUP_BYS.map(function (g) {
-      const label = g === 'device' ? 'Devices (no grouping)' : TL.ATTRIBUTES[g].label;
+    const opt = function (g, label) {
       return '<option value="' + g + '"' + (g === state.groupBy ? ' selected' : '') + '>' + esc(label) + '</option>';
+    };
+    el.groupby.innerHTML = TL.GROUP_BY_MENU.map(function (e) {
+      if (e.id) return opt(e.id, e.label);
+      return '<optgroup label="' + esc(e.group) + '">' + e.items.map(function (g) {
+        return opt(g, TL.GROUP_BY_LABELS[g] || TL.ATTRIBUTES[g].label);
+      }).join('') + '</optgroup>';
     }).join('');
   }
   function buildHighlight() {
@@ -524,7 +529,7 @@
           return '<dt>' + esc(c.label) + ' <span>' + Math.round(c.weight * 100) + '%</span></dt><dd><span class="tooltip__bar"><span style="width:' + v + '%;background:' + TL.valueOf('health', bandOf(v)).color + '"></span></span>' + v + '</dd>';
         }).join('') + '</dl>';
       }
-      body += '<dl class="tooltip__attrs">' + ['site', 'type', 'region', 'juju', 'jaas', 'maas', 'microcloud', 'sovereignty', 'confidential', 'release'].map(function (k) {
+      body += '<dl class="tooltip__attrs">' + ['site', 'region', 'environment', 'type', 'juju', 'jaas', 'maas', 'microcloud', 'sovereignty', 'confidential', 'release'].map(function (k) {
         return '<dt>' + esc(TL.ATTRIBUTES[k].short) + '</dt><dd' + (k === view().attr ? ' class="is-view"' : '') + '>' + esc(TL.valueOf(k, a[k]).label) + '</dd>';
       }).join('') + '</dl>';
       body += sustainHtml(d.sustain);

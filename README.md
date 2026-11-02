@@ -88,12 +88,12 @@ The data includes a fleet incident to show change over time. All of it is define
 
 | Month | What happens | Fleet avg | Factories |
 |---|---|---|---|
-| Jun | `opcua-connector` r214 crash-loops on factory devices; their telemetry drops by more than half | 69 | 56 |
-| Jul | A fleet-wide snap refresh hold contains it, but snap and patch currency slide everywhere | **56** | **39** |
-| Aug | Factories are rolled back to r212; the hold is lifted for everything else | 67 | 58 |
-| Sep | Fixed r216 ships after a canary soak; health is back to pre-incident levels | 73 | 69 |
+| Jun | `opcua-connector` r214 crash-loops on factory devices; their telemetry drops by more than half | 66 | 53 |
+| Jul | A fleet-wide snap refresh hold contains it, but snap and patch currency slide everywhere | **54** | **38** |
+| Aug | Factories are rolled back to r212; the hold is lifted for everything else | 64 | 56 |
+| Sep | Fixed r216 ships after a canary soak; health is back to pre-incident levels | 71 | 66 |
 
-Before the incident, the fleet average was 73 and factories averaged 69.
+Before the incident, the fleet average was about 69 and factories averaged about 65.
 
 Two SREs discuss and resolve the incident in a comment thread. To find it, choose **Device health** and group by **Site**, then open **Factory floor**. The thread's comments show as timeline markers from June to September.
 
@@ -136,7 +136,14 @@ The view selector is a dropdown. It starts on **Neutral**, where every flow is o
 | *Canonical infrastructure:* MAAS | MAAS version | 3.6 · 3.5 · none |
 | *Canonical infrastructure:* MicroCloud | MicroCloud membership | member · none |
 
-Group-by can use any of these attributes, plus site, device type, region and Ubuntu release.
+Group by is categorised by where each attribute comes from:
+
+| Category | Group-by options | Source |
+|---|---|---|
+| — | Devices (no grouping) | |
+| **Manual** | Site, Region, Environment, Telemetry residency | Assigned by people: tags, zones, policy settings |
+| **Reported** | Device health, Lifecycle, Energy, Confidential compute, Ubuntu release, Device type | Reported or measured by the device |
+| **Infrastructure** | Full / partial stack, Juju, JAAS, MAAS, MicroCloud | Canonical infrastructure the device runs on |
 
 ## Data structure (`js/data.js`)
 

@@ -35,6 +35,7 @@ Prototype of the **Insights** page (Telemetry product): a single-page Sankey. Se
 - A **view** colours devices (and their flows end to end) by one attribute, e.g. Juju version. Views never change columns.
 - View selector is a dropdown starting on **Neutral** (one flow colour): Neutral · Device health · Telemetry residency · Confidential compute · Sustainability ▸ (Lifecycle, Energy) · Canonical infrastructure ▸ (Full/partial stack, Juju, JAAS, MAAS, MicroCloud).
 - No intro/description text and no "synthetic data" note under the page header.
+- Group-by dropdown is categorised by attribute provenance: Manual (Site, Region, Environment, Telemetry residency) · Reported (Device health, Lifecycle, Energy, Confidential compute, Ubuntu release, Device type) · Infrastructure (Full/partial stack, Juju, JAAS, MAAS, MicroCloud). Site is a manually assigned label, not reported by devices.
 - **Group by** replaces the device column with that attribute's values (e.g. Juju 4.1 / 3.6 / none); publisher, policy and destination stay intact.
 - Single page, no tabs: view + group by + comments + timeline all available. Opens on Neutral view, devices ungrouped, "Compare to: nothing" (no deltas until chosen). "Reset comments" is a footer link.
 - No snapd / telemetry endpoint markers in the chart (removed at the user's request).

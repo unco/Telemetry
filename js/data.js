@@ -121,6 +121,8 @@ window.TL = window.TL || {};
     region: { label: 'Region', short: 'Region', values: [
       { id: 'fra', label: 'Frankfurt' }, { id: 'par', label: 'Paris' }, { id: 'ldn', label: 'London' },
       { id: 'nyc', label: 'New York' }, { id: 'sfo', label: 'San Francisco' }, { id: 'sgp', label: 'Singapore' }] },
+    environment: { label: 'Environment', short: 'Environment', values: [
+      { id: 'prod', label: 'Production' }, { id: 'staging', label: 'Staging' }, { id: 'lab', label: 'Lab' }] },
     release: { label: 'Ubuntu release', short: 'Release', values: [
       { id: '2004', label: 'Ubuntu 20.04 (ESM)' }, { id: '2204', label: 'Ubuntu 22.04 LTS' }, { id: '2404', label: 'Ubuntu 24.04 LTS' }, { id: '2604', label: 'Ubuntu 26.04 LTS' }] }
   };
@@ -461,6 +463,13 @@ window.TL = window.TL || {};
     cache[m] = facts;
     return facts;
   }
+  // Environment is a manual tag; drawn from its own RNG so other data is unchanged
+  DEVICES.forEach(function (d, i) {
+    const r = mulberry32(130363 * (i + 1));
+    const v = r();
+    d.attrs.environment = v < 0.7 ? 'prod' : v < 0.87 ? 'staging' : 'lab';
+  });
+
   // ---- Sustainability (device attributes, not payload) -------------------
   // Joined in the control plane from what the fleet already reports; kept
   // separate from health. Two layers:
@@ -550,12 +559,24 @@ window.TL = window.TL || {};
     { id: 'maas', attr: 'maas', label: 'MAAS', group: 'Canonical infrastructure', question: 'Which devices are provisioned by MAAS, and on which version?' },
     { id: 'microcloud', attr: 'microcloud', label: 'MicroCloud', group: 'Canonical infrastructure', question: 'Which devices belong to a MicroCloud cluster?' },
   ];
-  const GROUP_BYS = ['device', 'health', 'lifecycle', 'energy', 'site', 'juju', 'jaas', 'maas', 'microcloud', 'stack', 'sovereignty', 'confidential', 'type', 'region', 'release'];
+  // Group-by options, categorised by where the attribute comes from:
+  //   Manual         – assigned by people (tags, zones, policy settings)
+  //   Reported       – reported or measured by the device itself
+  //   Infrastructure – Canonical infrastructure the device runs on
+  const GROUP_BY_MENU = [
+    { id: 'device', label: 'Devices (no grouping)' },
+    { group: 'Manual', items: ['site', 'region', 'environment', 'sovereignty'] },
+    { group: 'Reported', items: ['health', 'lifecycle', 'energy', 'confidential', 'release', 'type'] },
+    { group: 'Infrastructure', items: ['stack', 'juju', 'jaas', 'maas', 'microcloud'] }
+  ];
+  const GROUP_BY_LABELS = { health: 'Device health', stack: 'Full / partial stack', juju: 'Juju', jaas: 'JAAS', maas: 'MAAS', energy: 'Energy' };
+  const GROUP_BYS = [];
+  GROUP_BY_MENU.forEach(function (e) { if (e.id) GROUP_BYS.push(e.id); else e.items.forEach(function (k) { GROUP_BYS.push(k); }); });
 
   Object.assign(TL, {
     MONTHS: MONTHS, monthLabel: monthLabel,
     ATTRIBUTES: ATTRIBUTES, DIMENSIONS: DIMENSIONS, ROUTING: ROUTING, PALETTE: PALETTE, HEALTH_COMPONENTS: HEALTH_COMPONENTS, HEALTH_RAMP: HEALTH_RAMP,
-    DEVICES: DEVICES, VIEWS: VIEWS, GROUP_BYS: GROUP_BYS,
+    DEVICES: DEVICES, VIEWS: VIEWS, GROUP_BYS: GROUP_BYS, GROUP_BY_MENU: GROUP_BY_MENU, GROUP_BY_LABELS: GROUP_BY_LABELS,
     PIPELINE: ['publisher', 'policy', 'destination'],
     snapshot: snapshot, deviceAt: deviceAt,
     valueOf: valueOf, parseNodeId: parseNodeId, nodeLabel: nodeLabel,
