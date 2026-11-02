@@ -113,7 +113,10 @@
           inOthers: others.filter(function (id) { return att.test(sum[id].a); }).length,
           all: ids.filter(function (id) { return att.test(sum[id].a); }).length } : null };
     }
-    topCache = { key: key, value: value, total: ids.length };
+    // how many devices already carry each manual label (used to remind people grouping is ready)
+    const coverage = {};
+    TL.MANUAL_KEYS.forEach(function (k) { coverage[k] = ids.filter(function (id) { return sum[id].a[k] !== 'unassigned'; }).length; });
+    topCache = { key: key, value: value, total: ids.length, coverage: coverage };
     return value;
   }
   function focusFn() {
@@ -306,10 +309,23 @@
   // explains what the chart is showing as the fleet grows, and offers the next step
   function drawLadder(top) {
     const parts = [], n = TL.DEVICES.length;
-    const groupBtns = function () {
+    const label = function (k) { return TL.GROUP_BY_LABELS[k] || TL.ATTRIBUTES[k].label; };
+    // quick group-bys: manual labels show how many devices already have one; reported ones always apply
+    const groupBtns = function (total, cov) {
       return '<span class="p-ladder__actions">Group by: ' + ['site', 'environment', 'type', 'release'].map(function (k) {
-        return '<button type="button" class="p-chip p-chip--small" data-ladder-group="' + k + '">' + esc(TL.GROUP_BY_LABELS[k] || TL.ATTRIBUTES[k].label) + '</button>';
+        const c = cov && cov[k] != null ? ' <span class="p-ladder__cov">' + cov[k] + '/' + total + '</span>' : '';
+        return '<button type="button" class="p-chip p-chip--small" data-ladder-group="' + k + '">' + esc(label(k)) + c + '</button>';
       }).join('') + '</span>';
+    };
+    // the reminder: grouping is ready because most devices are already labelled
+    const reminder = function (total, cov) {
+      // prefer the first manual key (Site) once at least half the devices carry it
+      const best = TL.MANUAL_KEYS.filter(function (k) { return (cov[k] || 0) >= total * 0.5; })[0] || TL.MANUAL_KEYS[0];
+      if (cov[best] && cov[best] >= total * 0.5) {
+        return '<strong>' + cov[best] + ' of ' + total + ' devices already have ' + (best === 'environment' ? 'an ' : 'a ') + label(best).toLowerCase() + '.</strong> ' +
+          'As your fleet grows, group by ' + label(best) + ' to keep this view readable.';
+      }
+      return 'You have ' + total + ' devices. Grouping keeps this view readable as your fleet grows.';
     };
     if (state.scope) {
       parts.push('<p>Showing devices in <strong>' + esc(TL.valueOf(state.scope.dim, state.scope.val).label) + '</strong> (' +
@@ -317,16 +333,18 @@
     }
     if (groupBy() === 'device' && top) {
       const at = top.attention;
-      let msg = 'Showing the top ' + LADDER.top + ' of ' + top.total.toLocaleString('en-GB') + ' devices by ' + rankLabel() +
-        '. <strong>Others</strong> holds ' + Math.round(top.share * 100) + '% of telemetry';
+      let msg = 'Showing the top ' + LADDER.top + ' of ' + top.total.toLocaleString('en-GB') + ' by ' + rankLabel() +
+        '; <strong>Others</strong> holds ' + Math.round(top.share * 100) + '% of telemetry';
       if (at && at.all && at.inOthers) msg += ' and ' + at.inOthers.toLocaleString('en-GB') + ' of the ' + at.all.toLocaleString('en-GB') + ' ' + at.label + '.';
       else if (at && at.all) msg += '. All ' + at.all + ' ' + at.label + ' are in the top ' + LADDER.top + '.';
       else msg += '.';
-      parts.push('<p>' + msg + '</p>' + (state.scope ? '' : groupBtns()));
+      if (state.scope || top.total >= 100) parts.push('<p>' + msg.charAt(0).toUpperCase() + msg.slice(1) + '</p>');
+      else parts.push('<div class="p-ladder__text"><p>' + reminder(top.total, topCache.coverage) + '</p><p class="p-ladder__sub">' + msg + '</p></div>' +
+        groupBtns(top.total, topCache.coverage));
     } else if (groupBy() === 'device' && topCache.total >= LADDER.nudge) {
-      parts.push('<p>You have ' + topCache.total + ' devices. Grouping keeps this view readable as your fleet grows.</p>' + groupBtns());
+      parts.push('<div class="p-ladder__text"><p>' + reminder(topCache.total, topCache.coverage) + '</p></div>' + groupBtns(topCache.total, topCache.coverage));
     } else if (groupBy() !== 'device' && n >= 100 && !state.scope) {
-      parts.push('<p>' + n.toLocaleString('en-GB') + ' devices, grouped by ' + esc((TL.GROUP_BY_LABELS[groupBy()] || TL.ATTRIBUTES[groupBy()].label).toLowerCase()) +
+      parts.push('<p>' + n.toLocaleString('en-GB') + ' devices, grouped by ' + esc(label(groupBy()).toLowerCase()) +
         '. Select a group to see its devices.</p>');
     }
     el.ladder.hidden = !parts.length;
