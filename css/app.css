@@ -259,7 +259,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .p-dist__seg { display: block; min-width: 2px; }
 .p-kpi__unit { font-size: .875rem; color: var(--muted); }
 .p-search { border: 0; border-bottom: 1px solid var(--ink); background: #fff; padding: 5px 8px; margin-left: auto; min-width: 200px; font-size: .875rem; }
-.tooltip__attrs { display: grid; grid-template-columns: auto 1fr; gap: 1px 10px; margin: 6px 0 0; }
+.tooltip__attrs { display: grid; grid-template-columns: 7.8em minmax(0, 1fr); gap: 1px 10px; margin: 6px 0 0; }
 .tooltip__attrs dt { color: #bbb; }
 .tooltip__attrs dd { margin: 0; }
 .tooltip__attrs dd.is-view { color: #ffb38f; font-weight: 600; }
@@ -303,7 +303,6 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* Sustainability in tooltips */
 .tooltip__section { margin-top: 8px; padding-top: 6px; border-top: 1px solid #333; font-size: .6875rem; text-transform: uppercase; letter-spacing: .06em; color: #bbb; }
 .tooltip__attrs--sustain { margin-top: 4px; }
-.tooltip__attrs--sustain dd { max-width: 220px; }
 .tooltip__flag { color: #f0b48f; }
 
 /* Pinned tooltip + sustainability accordion */
