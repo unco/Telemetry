@@ -45,5 +45,6 @@ Prototype of the **Insights** page (Telemetry product): a single-page Sankey. Se
 
 ## Deployment
 - Work branch: `claude/sankey-telemetry-illustration-vkal2f`.
+- Bump the `?v=` cache-busting query on the CSS/JS links in index.html with each deploy (phones cache GitHub Pages assets).
 - GitHub Pages serves the `gh-pages` branch at https://unco.github.io/Telemetry/ — push changes to both branches.
 - Data is synthetic and seeded; the site is public.
