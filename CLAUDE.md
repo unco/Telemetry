@@ -25,6 +25,7 @@ Prototype of the **Insights** page (Telemetry product): a single-page Sankey. Se
 - Sustainability signals are device attributes joined in the control plane (keep payloads light), shown in the device tooltip, separate from health.
 - Layer 1 Lifecycle: hardware age, supported-until (standard vs Ubuntu Pro/ESM), flag replacement "for software reasons alone".
 - Layer 2 Energy: monthly kWh band per physical device, measured via Redfish (BMC) on servers or RAPL via landscape-client (Kepler-style); unmeasured/virtual shown as such; idle-but-powered flag.
+- Only these two layers are intended; there is deliberately no third layer.
 - No snapd / telemetry endpoint wording in the subtitle or tooltips.
 
 ## Sankey rules agreed with the user
