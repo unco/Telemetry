@@ -21,6 +21,12 @@ Prototype of the **Insights** page (Telemetry product): a single-page Sankey. Se
 
 - Health data includes a deliberate incident (Jun–Sep 2026, opcua-connector r214 crash loop + fleet-wide refresh hold) with a two-SRE comment thread on Health · by Site · Factory floor.
 
+## Sustainability
+- Sustainability signals are device attributes joined in the control plane (keep payloads light), shown in the device tooltip, separate from health.
+- Layer 1 Lifecycle: hardware age, supported-until (standard vs Ubuntu Pro/ESM), flag replacement "for software reasons alone".
+- Layer 2 Energy: monthly kWh band per physical device, measured via Redfish (BMC) on servers or RAPL via landscape-client (Kepler-style); unmeasured/virtual shown as such; idle-but-powered flag.
+- No snapd / telemetry endpoint wording in the subtitle or tooltips.
+
 ## Sankey rules agreed with the user
 - Columns are fixed: **Device → Publisher → Policy → Destination**. Only column 1 changes.
 - A **view** colours devices (and their flows end to end) by one attribute, e.g. Juju version. Views never change columns.

@@ -437,6 +437,23 @@
       return '<div><span class="dot" style="background:' + (v.color || '#bbb') + '"></span>' + esc(v.label) + ' · ' + S.pct(x, total) + '%</div>';
     }).join('');
   }
+  // Sustainability section of a device tooltip: lifecycle, then energy
+  function sustainHtml(s) {
+    const rows = [];
+    rows.push(['Hardware age', s.physical ? s.ageYears.toFixed(1) + ' years' : 'Virtual (sits with the host or cloud provider)']);
+    rows.push(['Supported until', TL.monthLabel(s.supportedUntil) + (s.pro ? ' · Ubuntu Pro' : ' · standard')]);
+    rows.push(['Lifecycle', s.status]);
+    if (s.physical) {
+      const b = s.band;
+      rows.push(['Energy', Math.round(s.kwh) + ' kWh/month <span class="tooltip__band">(' + (b[1] === Infinity ? b[0] + '+' : b[0] + '–' + b[1]) + ')</span>']);
+      rows.push(['Utilisation', Math.round(s.utilisation) + '%' + (s.idle ? ' · <span class="tooltip__flag">idle but powered on</span>' : '')]);
+      rows.push(['Measured by', s.measuredBy ? esc(s.measuredBy) : '<span class="tooltip__band">Not measured (no landscape-client)</span>']);
+    } else {
+      rows.push(['Energy', '<span class="tooltip__band">Not attributed (virtual)</span>']);
+    }
+    return '<div class="tooltip__section">Sustainability</div><dl class="tooltip__attrs tooltip__attrs--sustain">' +
+      rows.map(function (r) { return '<dt>' + r[0] + '</dt><dd>' + (r[0] === 'Lifecycle' ? esc(r[1]) : r[1]) + '</dd>'; }).join('') + '</dl>';
+  }
   function tipForLink(key) {
     const l = lastLayout && lastLayout.links.filter(function (x) { return x.key === key; })[0];
     if (!l) return '';
@@ -462,6 +479,7 @@
       body += '<dl class="tooltip__attrs">' + ['site', 'type', 'region', 'juju', 'jaas', 'maas', 'microcloud', 'sovereignty', 'confidential', 'release'].map(function (k) {
         return '<dt>' + esc(TL.ATTRIBUTES[k].short) + '</dt><dd' + (k === view().attr ? ' class="is-view"' : '') + '>' + esc(TL.valueOf(k, a[k]).label) + '</dd>';
       }).join('') + '</dl>';
+      body += sustainHtml(d.sustain);
       const hist = d.changes.filter(function (c) { return c.month <= periodIndex(); });
       if (hist.length) body += '<div class="tooltip__hist">' + hist.map(function (c) { return esc(TL.monthLabel(TL.MONTHS[Math.min(c.month, LAST)], true)) + ' · ' + esc(c.note); }).join('<br>') + '</div>';
     } else {
@@ -469,8 +487,7 @@
     }
     if (n.dim === 'policy') {
       const rules = TL.ROUTING.filter(function (r) { return r.policy === n.val; });
-      body += '<div class="tooltip__hint">Rule ' + rules.map(function (r) { return r.id; }).join(', ') + ' · applied ' +
-        (rules[0].at === 'snapd' ? 'on the device by snapd' : 'at the telemetry endpoint') + '</div>';
+      body += '<div class="tooltip__hint">Rule ' + rules.map(function (r) { return r.id; }).join(', ') + '</div>';
     }
     const cnt = tab().comments ? (TL.comments.counts(ctx())[id] || 0) : 0;
     return '<div class="tooltip__dim">' + esc(TL.DIMENSIONS[n.dim].label) + '</div>' +

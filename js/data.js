@@ -440,10 +440,72 @@ window.TL = window.TL || {};
     cache[m] = facts;
     return facts;
   }
+  // ---- Sustainability (device attributes, not payload) -------------------
+  // Joined in the control plane from what the fleet already reports; kept
+  // separate from health. Two layers:
+  //   1. Lifecycle – hardware age and how long the OS stays supported
+  //      (standard vs Ubuntu Pro / ESM), to spot devices that would be
+  //      replaced for software reasons alone.
+  //   2. Energy – monthly energy per device, from Redfish (BMC platform power)
+  //      on servers, or CPU power counters (RAPL) read by landscape-client.
+  const SUPPORT = { // published Ubuntu lifecycle: [standard support ends, ESM with Ubuntu Pro ends]
+    '2004': ['2025-04', '2030-04'], '2204': ['2027-04', '2032-04'],
+    '2404': ['2029-04', '2034-04'], '2604': ['2031-04', '2036-04']
+  };
+  const ENERGY_BANDS = [[0, 25], [25, 50], [50, 100], [100, 250], [250, 500], [500, Infinity]];
+  DEVICES.forEach(function (d, i) {
+    const r = mulberry32(104729 * (i + 1));
+    const a = d.attrs;
+    const physical = a.type === 'metal' || a.type === 'edge' || (a.type === 'k8s' && a.site === 'datacentre');
+    const idle = physical && r() < 0.12;
+    d.sustain = {
+      physical: physical,
+      pro: r() < 0.7 && a.release !== '2004', // the neglected 20.04 device never had Pro attached
+      ageYears: physical ? (a.type === 'edge' ? 0.5 + r() * 6.5 : 1 + r() * 6) : null,
+      kwh: !physical ? null : a.type === 'edge' ? 18 + r() * 52 : 220 + r() * 300,
+      idle: idle,
+      utilisation: idle ? 3 + r() * 5 : 20 + r() * 50,
+      noise: MONTHS.map(function () { return 0.92 + r() * 0.16; })
+    };
+  });
+  function monthStr(p) { return monthLabel(p); }
+  function addMonths(p, n) { const y = +p.slice(0, 4), mo = +p.slice(5) - 1 + n; return (y + Math.floor(mo / 12)) + '-' + String(mo % 12 + 1).padStart(2, '0'); }
+  function sustainAt(d, a, m) {
+    const s = d.sustain, now = MONTHS[m];
+    const sup = SUPPORT[a.release];
+    const until = s.pro ? sup[1] : sup[0];
+    const out = { physical: s.physical, pro: s.pro, supportedUntil: until, esmUntil: sup[1], standardUntil: sup[0] };
+    if (s.physical) {
+      out.ageYears = s.ageYears + m / 12;
+      out.kwh = s.kwh * s.noise[m] * (s.idle ? 0.55 : 1);
+      out.band = ENERGY_BANDS.filter(function (b) { return out.kwh >= b[0] && out.kwh < b[1]; })[0];
+      out.utilisation = s.utilisation;
+      out.idle = s.idle;
+      out.measuredBy = a.type === 'edge'
+        ? (d.extras.landscape ? 'CPU power counters (RAPL) via landscape-client' : null)
+        : 'Redfish (BMC) · platform power';
+    }
+    // lifecycle status
+    if (until < now) {
+      out.softwareOnly = !s.pro && (!s.physical || out.ageYears < 7);
+      out.status = s.pro ? 'Out of support'
+        : out.softwareOnly ? 'Out of standard support since ' + monthStr(sup[0]) + '. The hardware is still fine, so replacing it would be for software reasons only; Ubuntu Pro would keep it in service until ' + monthStr(sup[1])
+        : 'Out of standard support; Ubuntu Pro would extend it to ' + monthStr(sup[1]);
+    } else if (s.physical && out.ageYears >= 7) {
+      out.status = 'Hardware due for refresh (7+ years)';
+    } else if (!s.pro && sup[0] <= addMonths(now, 12)) {
+      out.status = 'Standard support ends ' + monthStr(sup[0]) + '; Ubuntu Pro would extend it to ' + monthStr(sup[1]);
+    } else {
+      out.status = 'Can stay in service until ' + monthStr(until);
+    }
+    return out;
+  }
+
   function deviceAt(id, m) {
     const d = DEVICES.filter(function (x) { return x.id === id; })[0];
     if (!d) return null;
-    return { device: d, attrs: attrsAt(d, m), active: d.onboarded <= m,
+    const attrs = attrsAt(d, m);
+    return { device: d, attrs: attrs, active: d.onboarded <= m, sustain: sustainAt(d, attrs, m),
       changes: d.changes.filter(function (c) { return c.note; }) };
   }
 

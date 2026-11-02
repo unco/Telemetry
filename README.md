@@ -97,6 +97,23 @@ Before the incident, the fleet average was 73 and factories averaged 69.
 
 Two SREs discuss and resolve the incident in a comment thread. To find it, choose **Device health** and group by **Site**, then open **Factory floor**. The thread's comments show as timeline markers from June to September.
 
+## Sustainability (device tooltip)
+
+Sustainability signals are **device attributes**, joined in the control plane from what the fleet already reports, not extra payload. They're kept separate from health and shown in each device's tooltip (`sustainAt` in `js/data.js`).
+
+**1. Lifecycle.** For edge and store hardware, most of the carbon is embodied in manufacture, so keeping devices in service longer matters most. The tooltip shows:
+- hardware age;
+- the date the OS is supported until (standard support, or ESM with Ubuntu Pro), using published Ubuntu lifecycle dates;
+- a lifecycle status, which flags devices that would be replaced for **software reasons alone**.
+
+For example, `ldn-plant-04` is on 20.04 without Pro. Its hardware is 6 years old and fine, and Ubuntu Pro would keep it in service until April 2030.
+
+**2. Energy.** The tooltip shows the monthly energy (kWh) and band per physical device, its utilisation, and an "idle but powered on" flag. It also shows how the figure was measured:
+- **Bare-metal servers:** Redfish (BMC platform power).
+- **Edge devices:** CPU power counters (RAPL) read by `landscape-client`, the approach used by the open-source tool Kepler.
+- **Edge devices without `landscape-client`:** shown as not measured.
+- **Virtual machines:** shown as not attributed.
+
 ## Views
 
 The view selector is a dropdown. It starts on **Neutral**, where every flow is one colour (palette slate) with no breakdown.
