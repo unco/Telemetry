@@ -530,7 +530,14 @@
         }).join('') + '</dl>';
       }
       body += '<dl class="tooltip__attrs">' + ['site', 'region', 'environment', 'type', 'juju', 'jaas', 'maas', 'microcloud', 'sovereignty', 'confidential', 'release'].map(function (k) {
-        return '<dt>' + esc(TL.ATTRIBUTES[k].short) + '</dt><dd' + (k === view().attr ? ' class="is-view"' : '') + '>' + esc(TL.valueOf(k, a[k]).label) + '</dd>';
+        let val = esc(TL.valueOf(k, a[k]).label);
+        if (a[k] === 'unassigned') {
+          // manual key with no label: offer to assign it (only clickable once the tooltip is pinned)
+          val = '<span class="tooltip__band">Unassigned</span> ' + (pinned === id
+            ? '<a href="#" class="tooltip__assign" data-assign="' + k + '">Assign</a>'
+            : '<span class="tooltip__band">· click the device to assign</span>');
+        }
+        return '<dt>' + esc(TL.ATTRIBUTES[k].short) + '</dt><dd' + (k === view().attr ? ' class="is-view"' : '') + '>' + val + '</dd>';
       }).join('') + '</dl>';
       body += sustainHtml(d.sustain);
       const hist = d.changes.filter(function (c) { return c.month <= periodIndex(); });
@@ -623,7 +630,99 @@
       setTimeout(function () { pinTip(ev, id); }, 30);
     } else if (pinned) hideTip();
   });
-  el.tooltip.addEventListener('click', function (e) { if (e.target.closest('[data-tip-close]')) hideTip(); });
+  el.tooltip.addEventListener('click', function (e) {
+    if (e.target.closest('[data-tip-close]')) { hideTip(); return; }
+    const a = e.target.closest('[data-assign]');
+    if (a && pinned) { e.preventDefault(); openAssign(TL.parseNodeId(pinned).val, a.dataset.assign); }
+  });
+
+  // ---- assigning manual keys (modal with autocomplete) -------------------
+  const ASSIGN_KEY = 'tl.insights.assignments.v1';
+  function loadAssignments() { try { return JSON.parse(localStorage.getItem(ASSIGN_KEY)) || {}; } catch (e) { return {}; } }
+  function saveAssignment(device, key, value) {
+    const all = loadAssignments();
+    (all[device] = all[device] || {})[key] = value;
+    try { localStorage.setItem(ASSIGN_KEY, JSON.stringify(all)); } catch (e) { /* ignore */ }
+  }
+  function applySavedAssignments() {
+    const all = loadAssignments();
+    Object.keys(all).forEach(function (dev) { Object.keys(all[dev]).forEach(function (k) { TL.assign(dev, k, all[dev][k]); }); });
+    $('reset-assign').hidden = !Object.keys(all).length;
+  }
+  const dlg = $('assign-dialog');
+  // Escape inside the dialog closes only the dialog, not the pinned tooltip behind it
+  dlg.addEventListener('keydown', function (e) { if (e.key === 'Escape') e.stopPropagation(); });
+  function openAssign(device, key) {
+    const attr = TL.ATTRIBUTES[key];
+    const options = attr.values.filter(function (v) { return v.id !== 'unassigned'; });
+    const suggestion = TL.suggest(device, key);
+    const sugg = suggestion && TL.valueOf(key, suggestion);
+    dlg.innerHTML =
+      '<form method="dialog" class="p-modal__form" id="assign-form" novalidate>' +
+        '<h2 class="p-modal__title" id="assign-title">Assign ' + esc(attr.label.toLowerCase()) + '</h2>' +
+        '<p class="p-modal__sub">Device <strong>' + esc(device) + '</strong></p>' +
+        '<label class="p-field__label" for="assign-input">' + esc(attr.label) + '</label>' +
+        '<div class="p-combo">' +
+          '<input id="assign-input" class="p-combo__input" type="text" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="true" aria-controls="assign-list" placeholder="Start typing…">' +
+          '<ul class="p-combo__list" id="assign-list" role="listbox" aria-label="' + esc(attr.label) + ' values"></ul>' +
+        '</div>' +
+        (sugg ? '<p class="p-modal__hint">Suggested from the hostname: <a href="#" data-suggest="' + sugg.id + '">' + esc(sugg.label) + '</a></p>' : '') +
+        '<p class="p-modal__hint">Saved as a tag and shared with Landscape.</p>' +
+        '<div class="p-modal__actions"><button type="button" class="p-button" data-cancel>Cancel</button>' +
+        '<button type="submit" class="p-button p-button--positive" id="assign-ok" disabled>Assign</button></div>' +
+      '</form>';
+    const input = $('assign-input'), list = $('assign-list'), ok = $('assign-ok');
+    let matches = options, active = -1, chosen = null;
+    function choose(v) { chosen = v; input.value = v ? v.label : input.value; ok.disabled = !v; }
+    function draw() {
+      const q = input.value.trim().toLowerCase();
+      matches = options.filter(function (v) { return !q || v.label.toLowerCase().indexOf(q) >= 0; });
+      if (active >= matches.length) active = matches.length - 1;
+      list.innerHTML = matches.length ? matches.map(function (v, i) {
+        const label = esc(v.label);
+        const at = q ? v.label.toLowerCase().indexOf(q) : -1;
+        const shown = at >= 0 ? esc(v.label.slice(0, at)) + '<mark>' + esc(v.label.slice(at, at + q.length)) + '</mark>' + esc(v.label.slice(at + q.length)) : label;
+        return '<li role="option" id="assign-opt-' + i + '" class="p-combo__opt' + (i === active ? ' is-active' : '') + (chosen === v ? ' is-chosen' : '') + '" aria-selected="' + (i === active) + '" data-i="' + i + '">' + shown + '</li>';
+      }).join('') : '<li class="p-combo__empty">No matching ' + esc(attr.label.toLowerCase()) + '. Pick one of the predefined values.</li>';
+      input.setAttribute('aria-activedescendant', active >= 0 ? 'assign-opt-' + active : '');
+      // only an exact predefined value can be saved
+      const exact = options.filter(function (v) { return v.label.toLowerCase() === q; })[0];
+      chosen = exact || null; ok.disabled = !chosen;
+    }
+    input.addEventListener('input', function () { active = 0; draw(); });
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); active = Math.min(matches.length - 1, active + 1); draw(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); active = Math.max(0, active - 1); draw(); }
+      else if (e.key === 'Enter') {
+        if (!chosen && matches[active]) { e.preventDefault(); choose(matches[active]); draw(); }
+      }
+    });
+    list.addEventListener('mousedown', function (e) {
+      const li = e.target.closest('[data-i]'); if (!li) return;
+      e.preventDefault(); choose(matches[+li.dataset.i]); draw(); input.focus({ preventScroll: true });
+    });
+    dlg.querySelector('[data-cancel]').addEventListener('click', function () { dlg.close(); });
+    const sl = dlg.querySelector('[data-suggest]');
+    if (sl) sl.addEventListener('click', function (e) { e.preventDefault(); choose(TL.valueOf(key, sl.dataset.suggest)); draw(); input.focus({ preventScroll: true }); });
+    $('assign-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (!chosen) return;
+      TL.assign(device, key, chosen.id);
+      saveAssignment(device, key, chosen.id);
+      $('reset-assign').hidden = false;
+      dlg.close();
+      buildHighlight(); buildGroupFilter(); render();
+      if (pinned) { const at = tipAnchor; requestAnimationFrame(function () { pinTip({ clientX: at.x, clientY: at.y }, pinned); }); }
+    });
+    draw();
+    dlg.showModal();
+    input.focus({ preventScroll: true });
+  }
+  $('reset-assign').addEventListener('click', function (e) {
+    e.preventDefault();
+    try { localStorage.removeItem(ASSIGN_KEY); } catch (err) { /* ignore */ }
+    location.reload();
+  });
   // remember the accordion choice, and keep the tooltip on screen as it grows
   el.tooltip.addEventListener('toggle', function (e) {
     if (e.target.matches && e.target.matches('details[data-acc="sustain"]')) { state.sustainOpen = e.target.open; placeTip(); }
@@ -633,6 +732,7 @@
     if (n && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); selectNode(n.dataset.node); }
   });
   document.addEventListener('keydown', function (e) {
+    if (dlg.open) return; // the dialog handles its own Escape
     if (e.key === 'Escape' && pinned) { hideTip(); return; }
     if (e.key === 'Escape' && state.selected) { state.selected = null; render(); }
     if (e.key === ' ' && tab().time && e.target === document.body) { e.preventDefault(); state.playing ? stopPlay() : play(); }
@@ -697,10 +797,11 @@
       else hideTip();
     }, 30);
   });
-  window.addEventListener('scroll', hideTip, { passive: true });
+  window.addEventListener('scroll', function () { if (!$('assign-dialog').open) hideTip(); }, { passive: true });
   el.wrap.addEventListener('scroll', hideTip, { passive: true });
 
   // ---- boot -----------------------------------------------------------
+  applySavedAssignments();
   rebuildControls();
   render();
 })(window.TL);

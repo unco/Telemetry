@@ -114,7 +114,7 @@ window.TL = window.TL || {};
     site: { label: 'Site', short: 'Site', values: [
       { id: 'store', label: 'Retail store' }, { id: 'factory', label: 'Factory floor' },
       { id: 'dc', label: 'Distribution centre' }, { id: 'datacentre', label: 'Data centre' },
-      { id: 'cloud', label: 'Public cloud' }] },
+      { id: 'cloud', label: 'Public cloud' }, { id: 'unassigned', label: 'Unassigned' }] },
     type: { label: 'Device type', short: 'Type', values: [
       { id: 'metal', label: 'Bare-metal server' }, { id: 'vm', label: 'Virtual machine' },
       { id: 'k8s', label: 'Kubernetes node' }, { id: 'edge', label: 'Edge device' }] },
@@ -122,7 +122,7 @@ window.TL = window.TL || {};
       { id: 'fra', label: 'Frankfurt' }, { id: 'par', label: 'Paris' }, { id: 'ldn', label: 'London' },
       { id: 'nyc', label: 'New York' }, { id: 'sfo', label: 'San Francisco' }, { id: 'sgp', label: 'Singapore' }] },
     environment: { label: 'Environment', short: 'Environment', values: [
-      { id: 'prod', label: 'Production' }, { id: 'staging', label: 'Staging' }, { id: 'lab', label: 'Lab' }] },
+      { id: 'prod', label: 'Production' }, { id: 'staging', label: 'Staging' }, { id: 'lab', label: 'Lab' }, { id: 'unassigned', label: 'Unassigned' }] },
     release: { label: 'Ubuntu release', short: 'Release', values: [
       { id: '2004', label: 'Ubuntu 20.04 (ESM)' }, { id: '2204', label: 'Ubuntu 22.04 LTS' }, { id: '2404', label: 'Ubuntu 24.04 LTS' }, { id: '2604', label: 'Ubuntu 26.04 LTS' }] }
   };
@@ -377,7 +377,7 @@ window.TL = window.TL || {};
       parts.stability = clamp(parts.stability - 35);
       parts.reporting = clamp(parts.reporting - 20);
     }
-    const fi = INCIDENT.fleet[m], fa = a.site === 'factory' && INCIDENT.factory[m];
+    const fi = INCIDENT.fleet[m], fa = d.siteTrue === 'factory' && INCIDENT.factory[m];
     if (fi) Object.keys(fi).forEach(function (k) { parts[k] = clamp(parts[k] + fi[k]); });
     if (fa) Object.keys(fa).forEach(function (k) {
       parts[k] = k === 'stability' ? Math.min(parts[k], fa[k]) : clamp(parts[k] + fa[k]);
@@ -573,7 +573,40 @@ window.TL = window.TL || {};
   const GROUP_BYS = [];
   GROUP_BY_MENU.forEach(function (e) { if (e.id) GROUP_BYS.push(e.id); else e.items.forEach(function (k) { GROUP_BYS.push(k); }); });
 
+  // ---- Manual keys and assignment ----------------------------------------
+  // Site and Environment are labels people assign (e.g. Landscape tags), so
+  // some devices start without one. The model keeps each device's true site
+  // (d.siteTrue) for generating its snaps and health; only the label is missing.
+  const MANUAL_KEYS = ['site', 'environment'];
+  DEVICES.forEach(function (d) { d.siteTrue = d.attrs.site; });
+  (function () {
+    const r = mulberry32(271828);
+    const pickSome = function (n) {
+      const out = [];
+      while (out.length < n) { const d = DEVICES[Math.floor(r() * DEVICES.length)]; if (out.indexOf(d) < 0) out.push(d); }
+      return out;
+    };
+    pickSome(4).forEach(function (d) { d.attrs.site = 'unassigned'; });
+    pickSome(3).forEach(function (d) { d.attrs.environment = 'unassigned'; });
+  })();
+  const SITE_FROM_HOST = { store: 'store', plant: 'factory', depot: 'dc', dc: 'datacentre', cloud: 'cloud' };
+  function clearCache() { Object.keys(cache).forEach(function (k) { delete cache[k]; }); }
+  // Assign a manual key's value to a device (applies to its label in every month)
+  function assign(deviceId, key, value) {
+    const d = DEVICES.filter(function (x) { return x.id === deviceId; })[0];
+    if (!d || MANUAL_KEYS.indexOf(key) < 0 || !valueOf(key, value)) return false;
+    d.attrs[key] = value; clearCache();
+    return true;
+  }
+  // A suggested value, if one can be inferred (Site from the hostname)
+  function suggest(deviceId, key) {
+    if (key !== 'site') return null;
+    const code = deviceId.split('-')[1];
+    return SITE_FROM_HOST[code] || null;
+  }
+
   Object.assign(TL, {
+    MANUAL_KEYS: MANUAL_KEYS, assign: assign, suggest: suggest,
     MONTHS: MONTHS, monthLabel: monthLabel,
     ATTRIBUTES: ATTRIBUTES, DIMENSIONS: DIMENSIONS, ROUTING: ROUTING, PALETTE: PALETTE, HEALTH_COMPONENTS: HEALTH_COMPONENTS, HEALTH_RAMP: HEALTH_RAMP,
     DEVICES: DEVICES, VIEWS: VIEWS, GROUP_BYS: GROUP_BYS, GROUP_BY_MENU: GROUP_BY_MENU, GROUP_BY_LABELS: GROUP_BY_LABELS,

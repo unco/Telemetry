@@ -36,6 +36,15 @@ It's a single page with every capability switched on:
 
 Device names say where the device is: `<region>-<site>-<nn>`, e.g. `fra-plant-01`, `nyc-store-02`, `sgp-cloud-01`. Site codes are `store` (retail store), `plant` (factory floor), `depot` (distribution centre), `dc` (data centre) and `cloud` (public cloud). In column 1, devices are sorted by region, then site.
 
+## Assigning manual keys
+
+Site and Environment are **manual** keys: labels people assign, such as Landscape tags. Some devices start without one, and grouping by that key shows them as an **Unassigned** stream.
+
+- **Assigning:** in a pinned device tooltip (click the device), an unassigned key shows an **Assign** link. On hover it says "click the device to assign" instead, since hover tooltips can't be clicked.
+- **The modal:** it has a text field that autocompletes to the key's predefined values. Only a predefined value can be saved, never free text. For Site it suggests a value inferred from the hostname, e.g. `nyc-dc-01` → Data centre.
+- **Effect:** the chart, groups and filter chips update immediately. The assignment is described as being shared with Landscape as a tag. In the prototype it's saved in the browser, and **Reset assignments** in the footer clears it.
+- **Model:** each device keeps its true site, so its snaps, health and the incident data don't change while the label is missing.
+
 ## Publishers (snaps)
 
 The fleet is modelled on a large retailer or manufacturer, spread across retail stores, factory floors, distribution centres, data centres and public cloud. Most publishers are the customer's own or partner applications; Canonical infrastructure snaps are a minority.

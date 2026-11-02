@@ -318,3 +318,26 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .tooltip__sum { font-size: .75rem; color: #ddd; }
 .tooltip__acc[open] .tooltip__sum { display: none; }
 .tooltip:not(.is-pinned) .tooltip__acc summary::after { opacity: .5; }
+
+/* Assign link in tooltips */
+.tooltip__assign { color: #8fc1ff; margin-left: 4px; }
+
+/* Modal + autocomplete */
+.p-modal { border: 0; padding: 0; width: min(440px, calc(100vw - 32px)); border-radius: 2px; box-shadow: 0 8px 32px rgba(0,0,0,.3); }
+.p-modal::backdrop { background: rgba(0,0,0,.45); }
+.p-modal__form { padding: 20px 24px 20px; display: flex; flex-direction: column; gap: 8px; }
+.p-modal__title { font-size: 1.375rem; font-weight: 300; margin: 0; }
+.p-modal__sub { margin: 0 0 8px; color: var(--muted); font-size: .9375rem; }
+.p-modal__hint { margin: 0; font-size: .8125rem; color: var(--muted); }
+.p-modal__actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.p-button:disabled { opacity: .45; cursor: not-allowed; }
+.p-combo { position: relative; }
+.p-combo__input { width: 100%; border: 0; border-bottom: 1px solid var(--ink); background: var(--bg-soft); padding: 8px 10px; }
+.p-combo__list { list-style: none; margin: 0; padding: 4px 0; border: 1px solid var(--border); border-top: 0; max-height: 200px; overflow-y: auto; }
+.p-combo__opt { padding: 6px 10px; cursor: pointer; }
+.p-combo__opt.is-active, .p-combo__opt:hover { background: var(--bg-soft); }
+.p-combo__opt.is-chosen { font-weight: 500; }
+.p-combo__opt.is-chosen::after { content: " ✓"; color: var(--positive); }
+.p-combo__opt mark { background: none; font-weight: 600; color: inherit; text-decoration: underline; }
+.p-combo__empty { padding: 6px 10px; color: var(--muted); font-size: .875rem; }
+.p-page-footer__link + .p-page-footer__link { margin-left: 16px; }
