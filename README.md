@@ -58,7 +58,7 @@ The page adapts to fleet size. For demos, the fleet is chosen with an invisible 
 - **Some devices are always shown:** devices with comments in the current view, the selected device, and the device whose tooltip is open.
 - **Minimum height:** in column 1, each named device gets a minimum bar height so its name stays readable. Its flows stay proportional to its real volume.
 
-**The reminder (16+ devices, including the mid fleet):** the note leads with a reminder that grouping is ready, based on how many devices already carry a manual label. For example, "**34 of 38 devices already have a site.** As your fleet grows, group by Site to keep this view readable." It prefers Site once at least half the devices have one. The quick Group by buttons show coverage for manual keys (Site 34/38, Environment 35/38). Device type and Ubuntu release are reported by every device, so they show none. When Others applies, a quieter second line says what it holds.
+**The reminder (16+ devices, including the mid fleet):** the note leads with a reminder that grouping is ready, based on how many devices already carry a manual label. For example, "**34 of 38 devices already have a site.** As your fleet grows, group by Site to keep this view readable." It prefers Site once at least half the devices have one. Quick Group by buttons follow (Site, Environment, Device type, Ubuntu release). When Others applies, a quieter second line says what it holds.
 
 **What the Others note says:** how much telemetry Others holds and, for Health, Lifecycle and Energy, how many devices needing attention it hides. For example: "Others holds 98% of telemetry and 226 of the 246 unhealthy devices".
 

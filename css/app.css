@@ -352,4 +352,4 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .p-ladder__text { flex: 1 1 360px; }
 .p-ladder__text p { margin: 0; }
 .p-ladder__sub { color: var(--muted); font-size: .8125rem; margin-top: 2px !important; }
-.p-ladder__cov { color: var(--muted); font-size: .75rem; margin-left: 2px; }
+.p-ladder__btn { padding: 3px 12px; font-size: .8125rem; background: #fff; }

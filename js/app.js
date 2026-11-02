@@ -310,11 +310,10 @@
   function drawLadder(top) {
     const parts = [], n = TL.DEVICES.length;
     const label = function (k) { return TL.GROUP_BY_LABELS[k] || TL.ATTRIBUTES[k].label; };
-    // quick group-bys: manual labels show how many devices already have one; reported ones always apply
+    // quick group-by buttons
     const groupBtns = function (total, cov) {
       return '<span class="p-ladder__actions">Group by: ' + ['site', 'environment', 'type', 'release'].map(function (k) {
-        const c = cov && cov[k] != null ? ' <span class="p-ladder__cov">' + cov[k] + '/' + total + '</span>' : '';
-        return '<button type="button" class="p-chip p-chip--small" data-ladder-group="' + k + '">' + esc(label(k)) + c + '</button>';
+        return '<button type="button" class="p-button p-ladder__btn" data-ladder-group="' + k + '">' + esc(label(k)) + '</button>';
       }).join('') + '</span>';
     };
     // the reminder: grouping is ready because most devices are already labelled
