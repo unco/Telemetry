@@ -341,3 +341,5 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .p-combo__opt mark { background: none; font-weight: 600; color: inherit; text-decoration: underline; }
 .p-combo__empty { padding: 6px 10px; color: var(--muted); font-size: .875rem; }
 .p-page-footer__link + .p-page-footer__link { margin-left: 16px; }
+.p-combo__opt--create { border-top: 1px solid var(--border); color: var(--link); }
+.p-combo__new { font-weight: 500; }

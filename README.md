@@ -41,8 +41,12 @@ Device names say where the device is: `<region>-<site>-<nn>`, e.g. `fra-plant-01
 Site and Environment are **manual** keys: labels people assign, such as Landscape tags. Some devices start without one, and grouping by that key shows them as an **Unassigned** stream.
 
 - **Assigning:** in a pinned device tooltip (click the device), an unassigned key shows an **Assign** link. On hover it says "click the device to assign" instead, since hover tooltips can't be clicked.
-- **The modal:** it has a text field that autocompletes to the key's predefined values. Only a predefined value can be saved, never free text. For Site it suggests a value inferred from the hostname, e.g. `nyc-dc-01` → Data centre.
-- **Effect:** the chart, groups and filter chips update immediately. The assignment is described as being shared with Landscape as a tag. In the prototype it's saved in the browser, and **Reset assignments** in the footer clears it.
+- **The modal:** it has a text field that autocompletes to the key's existing values, including near matches (typing `factory2` also shows Factory floor), so people reuse values where they can.
+  - If the text isn't an existing value, the list offers **+ Create "factory2" as a new site**, and the button changes to **Create and assign**.
+  - An exact match, ignoring case, reuses the existing value instead of creating a duplicate.
+  - New values become real values for that key: they get their own stream, filter chip and autocomplete entry.
+  - For Site, the modal also suggests a value inferred from the hostname, e.g. `nyc-dc-01` → Data centre.
+- **Effect:** the chart, groups and filter chips update immediately. The assignment is described as being shared with Landscape as a tag. In the prototype, assignments and new values are saved in the browser, and **Reset assignments** in the footer clears both.
 - **Model:** each device keeps its true site, so its snaps, health and the incident data don't change while the label is missing.
 
 ## Publishers (snaps)

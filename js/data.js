@@ -598,6 +598,21 @@ window.TL = window.TL || {};
     d.attrs[key] = value; clearCache();
     return true;
   }
+  // Add a new value to a manual key (e.g. a new site 'factory2'); returns its id.
+  // An existing value with the same label (ignoring case) is reused instead.
+  function addValue(key, label, id) {
+    if (MANUAL_KEYS.indexOf(key) < 0) return null;
+    label = String(label).trim(); if (!label) return null;
+    const attr = ATTRIBUTES[key];
+    const existing = attr.values.filter(function (v) { return v.label.toLowerCase() === label.toLowerCase(); })[0];
+    if (existing) return existing.id;
+    id = id || 'new-' + label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now().toString(36);
+    const at = attr.values.findIndex(function (v) { return v.id === 'unassigned'; });
+    attr.values.splice(at < 0 ? attr.values.length : at, 0, { id: id, label: label, custom: true });
+    attr.index = {}; attr.values.forEach(function (v, i) { attr.index[v.id] = i; v.order = i; });
+    clearCache();
+    return id;
+  }
   // A suggested value, if one can be inferred (Site from the hostname)
   function suggest(deviceId, key) {
     if (key !== 'site') return null;
@@ -606,7 +621,7 @@ window.TL = window.TL || {};
   }
 
   Object.assign(TL, {
-    MANUAL_KEYS: MANUAL_KEYS, assign: assign, suggest: suggest,
+    MANUAL_KEYS: MANUAL_KEYS, assign: assign, suggest: suggest, addValue: addValue,
     MONTHS: MONTHS, monthLabel: monthLabel,
     ATTRIBUTES: ATTRIBUTES, DIMENSIONS: DIMENSIONS, ROUTING: ROUTING, PALETTE: PALETTE, HEALTH_COMPONENTS: HEALTH_COMPONENTS, HEALTH_RAMP: HEALTH_RAMP,
     DEVICES: DEVICES, VIEWS: VIEWS, GROUP_BYS: GROUP_BYS, GROUP_BY_MENU: GROUP_BY_MENU, GROUP_BY_LABELS: GROUP_BY_LABELS,

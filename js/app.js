@@ -644,7 +644,16 @@
     (all[device] = all[device] || {})[key] = value;
     try { localStorage.setItem(ASSIGN_KEY, JSON.stringify(all)); } catch (e) { /* ignore */ }
   }
+  const VALUES_KEY = 'tl.insights.values.v1';
+  function loadValues() { try { return JSON.parse(localStorage.getItem(VALUES_KEY)) || {}; } catch (e) { return {}; } }
+  function saveValue(key, id, label) {
+    const all = loadValues();
+    (all[key] = all[key] || []).push({ id: id, label: label });
+    try { localStorage.setItem(VALUES_KEY, JSON.stringify(all)); } catch (e) { /* ignore */ }
+  }
   function applySavedAssignments() {
+    const vals = loadValues();
+    Object.keys(vals).forEach(function (k) { vals[k].forEach(function (v) { TL.addValue(k, v.label, v.id); }); });
     const all = loadAssignments();
     Object.keys(all).forEach(function (dev) { Object.keys(all[dev]).forEach(function (k) { TL.assign(dev, k, all[dev][k]); }); });
     $('reset-assign').hidden = !Object.keys(all).length;
@@ -654,16 +663,17 @@
   dlg.addEventListener('keydown', function (e) { if (e.key === 'Escape') e.stopPropagation(); });
   function openAssign(device, key) {
     const attr = TL.ATTRIBUTES[key];
+    const noun = attr.label.toLowerCase();
     const options = attr.values.filter(function (v) { return v.id !== 'unassigned'; });
     const suggestion = TL.suggest(device, key);
     const sugg = suggestion && TL.valueOf(key, suggestion);
     dlg.innerHTML =
       '<form method="dialog" class="p-modal__form" id="assign-form" novalidate>' +
-        '<h2 class="p-modal__title" id="assign-title">Assign ' + esc(attr.label.toLowerCase()) + '</h2>' +
+        '<h2 class="p-modal__title" id="assign-title">Assign ' + esc(noun) + '</h2>' +
         '<p class="p-modal__sub">Device <strong>' + esc(device) + '</strong></p>' +
         '<label class="p-field__label" for="assign-input">' + esc(attr.label) + '</label>' +
         '<div class="p-combo">' +
-          '<input id="assign-input" class="p-combo__input" type="text" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="true" aria-controls="assign-list" placeholder="Start typing…">' +
+          '<input id="assign-input" class="p-combo__input" type="text" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="true" aria-controls="assign-list" placeholder="Pick an existing ' + esc(noun) + ' or type a new one">' +
           '<ul class="p-combo__list" id="assign-list" role="listbox" aria-label="' + esc(attr.label) + ' values"></ul>' +
         '</div>' +
         (sugg ? '<p class="p-modal__hint">Suggested from the hostname: <a href="#" data-suggest="' + sugg.id + '">' + esc(sugg.label) + '</a></p>' : '') +
@@ -672,43 +682,70 @@
         '<button type="submit" class="p-button p-button--positive" id="assign-ok" disabled>Assign</button></div>' +
       '</form>';
     const input = $('assign-input'), list = $('assign-list'), ok = $('assign-ok');
-    let matches = options, active = -1, chosen = null;
-    function choose(v) { chosen = v; input.value = v ? v.label : input.value; ok.disabled = !v; }
+    // rows = matching existing values, then (if the text is new) a "Create" row
+    let rows = [], active = -1, chosen = null;
+    function setChosen(row) {
+      chosen = row;
+      ok.disabled = !row;
+      ok.textContent = row && row.create ? 'Create and assign' : 'Assign';
+    }
     function draw() {
-      const q = input.value.trim().toLowerCase();
-      matches = options.filter(function (v) { return !q || v.label.toLowerCase().indexOf(q) >= 0; });
-      if (active >= matches.length) active = matches.length - 1;
-      list.innerHTML = matches.length ? matches.map(function (v, i) {
-        const label = esc(v.label);
-        const at = q ? v.label.toLowerCase().indexOf(q) : -1;
-        const shown = at >= 0 ? esc(v.label.slice(0, at)) + '<mark>' + esc(v.label.slice(at, at + q.length)) + '</mark>' + esc(v.label.slice(at + q.length)) : label;
-        return '<li role="option" id="assign-opt-' + i + '" class="p-combo__opt' + (i === active ? ' is-active' : '') + (chosen === v ? ' is-chosen' : '') + '" aria-selected="' + (i === active) + '" data-i="' + i + '">' + shown + '</li>';
-      }).join('') : '<li class="p-combo__empty">No matching ' + esc(attr.label.toLowerCase()) + '. Pick one of the predefined values.</li>';
-      input.setAttribute('aria-activedescendant', active >= 0 ? 'assign-opt-' + active : '');
-      // only an exact predefined value can be saved
+      const raw = input.value.trim(), q = raw.toLowerCase();
+      // also match the word without trailing digits/punctuation, so 'factory2' still surfaces 'Factory floor'
+      const core = q.replace(/[\d\s_-]+$/, '');
+      const hit = function (lab) { lab = lab.toLowerCase(); return lab.indexOf(q) >= 0 ? q : core.length >= 3 && lab.indexOf(core) >= 0 ? core : null; };
+      const matches = options.filter(function (v) { return !q || hit(v.label); });
       const exact = options.filter(function (v) { return v.label.toLowerCase() === q; })[0];
-      chosen = exact || null; ok.disabled = !chosen;
+      rows = matches.map(function (v) { return { value: v }; });
+      if (raw && !exact) rows.push({ create: true, label: raw });
+      if (active >= rows.length) active = rows.length - 1;
+      list.innerHTML = rows.map(function (r, i) {
+        let html;
+        if (r.create) html = '<span class="p-combo__new">+ Create “' + esc(r.label) + '”</span> as a new ' + esc(noun);
+        else {
+          const lab = r.value.label, term = q ? hit(lab) : null, at = term ? lab.toLowerCase().indexOf(term) : -1;
+          html = at >= 0 ? esc(lab.slice(0, at)) + '<mark>' + esc(lab.slice(at, at + term.length)) + '</mark>' + esc(lab.slice(at + term.length)) : esc(lab);
+        }
+        const isChosen = chosen && (r.create ? chosen.create : chosen.value === r.value);
+        return '<li role="option" id="assign-opt-' + i + '" class="p-combo__opt' + (r.create ? ' p-combo__opt--create' : '') + (i === active ? ' is-active' : '') + (isChosen ? ' is-chosen' : '') + '" aria-selected="' + (i === active) + '" data-i="' + i + '">' + html + '</li>';
+      }).join('');
+      input.setAttribute('aria-activedescendant', active >= 0 ? 'assign-opt-' + active : '');
+      // typed text decides what will be saved: an existing value if it matches exactly, otherwise a new one
+      setChosen(exact ? { value: exact } : raw ? { create: true, label: raw } : null);
+    }
+    function pick(row) {
+      if (!row) return;
+      input.value = row.create ? row.label : row.value.label;
+      active = -1; draw();
     }
     input.addEventListener('input', function () { active = 0; draw(); });
     input.addEventListener('keydown', function (e) {
-      if (e.key === 'ArrowDown') { e.preventDefault(); active = Math.min(matches.length - 1, active + 1); draw(); }
+      if (e.key === 'ArrowDown') { e.preventDefault(); active = Math.min(rows.length - 1, active + 1); draw(); }
       else if (e.key === 'ArrowUp') { e.preventDefault(); active = Math.max(0, active - 1); draw(); }
-      else if (e.key === 'Enter') {
-        if (!chosen && matches[active]) { e.preventDefault(); choose(matches[active]); draw(); }
+      else if (e.key === 'Enter' && active >= 0 && rows[active]) {
+        // Enter on a highlighted row picks it; Enter again submits
+        const row = rows[active];
+        const same = chosen && (row.create ? chosen.create && chosen.label === row.label : chosen.value === row.value);
+        if (!same) { e.preventDefault(); pick(row); }
       }
     });
     list.addEventListener('mousedown', function (e) {
       const li = e.target.closest('[data-i]'); if (!li) return;
-      e.preventDefault(); choose(matches[+li.dataset.i]); draw(); input.focus({ preventScroll: true });
+      e.preventDefault(); pick(rows[+li.dataset.i]); input.focus({ preventScroll: true });
     });
     dlg.querySelector('[data-cancel]').addEventListener('click', function () { dlg.close(); });
     const sl = dlg.querySelector('[data-suggest]');
-    if (sl) sl.addEventListener('click', function (e) { e.preventDefault(); choose(TL.valueOf(key, sl.dataset.suggest)); draw(); input.focus({ preventScroll: true }); });
+    if (sl) sl.addEventListener('click', function (e) { e.preventDefault(); pick({ value: TL.valueOf(key, sl.dataset.suggest) }); input.focus({ preventScroll: true }); });
     $('assign-form').addEventListener('submit', function (e) {
       e.preventDefault();
       if (!chosen) return;
-      TL.assign(device, key, chosen.id);
-      saveAssignment(device, key, chosen.id);
+      let id;
+      if (chosen.create) {
+        id = TL.addValue(key, chosen.label);
+        saveValue(key, id, chosen.label);
+      } else id = chosen.value.id;
+      TL.assign(device, key, id);
+      saveAssignment(device, key, id);
       $('reset-assign').hidden = false;
       dlg.close();
       buildHighlight(); buildGroupFilter(); render();
@@ -720,7 +757,7 @@
   }
   $('reset-assign').addEventListener('click', function (e) {
     e.preventDefault();
-    try { localStorage.removeItem(ASSIGN_KEY); } catch (err) { /* ignore */ }
+    try { localStorage.removeItem(ASSIGN_KEY); localStorage.removeItem(VALUES_KEY); } catch (err) { /* ignore */ }
     location.reload();
   });
   // remember the accordion choice, and keep the tooltip on screen as it grows
