@@ -131,7 +131,7 @@
     if (fd === 'neutral') { // nothing to filter by in the neutral view: devices get the search box only
       el.filter.innerHTML = '<span class="p-group-filter__label">Devices</span>' + search;
       const q0 = $('device-q');
-      if (q0) q0.addEventListener('input', function (e) { state.query = e.target.value; render(); });
+      if (q0) q0.addEventListener('input', function (e) { hideTip(); state.query = e.target.value; render(); });
       return;
     }
     el.filter.innerHTML = '<span class="p-group-filter__label">' + (g === 'device' ? 'Show devices with' : 'Show streams') + '</span>' +
@@ -143,7 +143,7 @@
       }).join('') +
       (nEx ? '<button type="button" class="p-link" data-gall="1">Show all</button>' : '') + search;
     const q = $('device-q');
-    if (q) q.addEventListener('input', function (e) { state.query = e.target.value; render(); });
+    if (q) q.addEventListener('input', function (e) { hideTip(); state.query = e.target.value; render(); });
   }
 
   // ---- dynamic render -------------------------------------------------
@@ -200,6 +200,10 @@
     drawKpis(agg);
     if (t.time) drawTimeline(); else el.timeline.hidden = true;
     if (t.comments) drawComments(); else el.comments.hidden = true;
+    if (pinned) {
+      if (lastLayout.nodes.some(function (n) { return n.id === pinned; })) { el.tooltip.innerHTML = tipForNode(pinned); placeTip(); }
+      else hideTip();
+    }
   }
 
   function drawLegend(stg, L) {
@@ -456,7 +460,16 @@
   // The tooltip follows hover. Clicking a device pins it, which makes it
   // interactive (so the Sustainability accordion can be opened or closed).
   let pinned = null, tipAnchor = null;
+  // an open (pinned) tooltip is anchored to its device, so it follows the chart when the page scrolls
+  function anchorToPinned() {
+    const bar = pinned && el.svg.querySelector('[data-node="' + pinned + '"] .sk-node__bar');
+    if (!bar) return false;
+    const r = bar.getBoundingClientRect();
+    tipAnchor = { x: r.right, y: r.top + Math.min(r.height / 2, 12) };
+    return true;
+  }
   function placeTip() {
+    if (pinned) anchorToPinned();
     if (!tipAnchor) return;
     const r = el.tooltip.getBoundingClientRect();
     let x = tipAnchor.x + 14, y = tipAnchor.y + 14;
@@ -475,7 +488,7 @@
     pinned = id;
     const html = tipForNode(id);
     if (!html) return hideTip();
-    el.tooltip.innerHTML = '<button type="button" class="tooltip__close" data-tip-close aria-label="Close details">✕</button>' + html;
+    el.tooltip.innerHTML = html;
     el.tooltip.classList.add('is-pinned'); el.tooltip.hidden = false;
     tipAnchor = { x: e.clientX, y: e.clientY }; placeTip();
   }
@@ -563,6 +576,7 @@
   }
 
   el.viewSelect.addEventListener('change', function (e) {
+    hideTip();
     const prevAttr = view().attr;
     state.view = e.target.value;
     // keep group-by linked to the view unless the user chose something else
@@ -571,16 +585,19 @@
     rebuildControls(); render();
   });
   el.hl.addEventListener('click', function (e) {
+    if (e.target.closest('[data-iso]')) hideTip();
     const b = e.target.closest('[data-iso]'); if (!b) return;
     const v = b.dataset.iso;
     state.isolate[state.view] = !v || state.isolate[state.view] === v ? null : v;
     buildHighlight(); render();
   });
   el.groupby.addEventListener('change', function (e) {
+    hideTip();
     state.groupBy = e.target.value; state.hover = null; clearColumn1Selection();
     buildGroupFilter(); render();
   });
   el.filter.addEventListener('click', function (e) {
+    if (e.target.closest('[data-gval], [data-gall]')) hideTip();
     const fd = filterDim();
     if (e.target.closest('[data-gall]')) { state.excluded[fd] = {}; buildHighlight(); buildGroupFilter(); render(); return; }
     const b = e.target.closest('[data-gval]'); if (!b) return;
@@ -622,16 +639,27 @@
     const t = e.target.closest('[data-node]');
     const id = t ? t.dataset.node : pressed;
     pressed = null;
-    if (id) selectNode(id);
-    else if (state.selected) { state.selected = null; render(); }
-    // devices pin an interactive tooltip; anything else releases it
-    if (id && state.selected === id && TL.parseNodeId(id).dim === 'device') {
+    // A device opens its tooltip and keeps it open (clicking it again doesn't close it).
+    // It closes on a click outside, a click on another device, or a filter change.
+    if (id && TL.parseNodeId(id).dim === 'device') {
+      state.selected = id; state.hover = null; render();
       const ev = { clientX: e.clientX, clientY: e.clientY };
       setTimeout(function () { pinTip(ev, id); }, 30);
-    } else if (pinned) hideTip();
+      return;
+    }
+    if (pinned) hideTip();
+    if (id) selectNode(id);
+    else if (state.selected) { state.selected = null; render(); }
+  });
+  // a click anywhere outside the chart and the tooltip closes it (the assign dialog and timeline don't count)
+  document.addEventListener('click', function (e) {
+    if (!pinned) return;
+    const t = e.target;
+    // the timeline isn't a filter: scrubbing keeps the tooltip open and refreshes it for the new month
+    if (el.tooltip.contains(t) || el.svg.contains(t) || el.timeline.contains(t) || $('assign-dialog').contains(t) || $('assign-dialog').open) return;
+    hideTip();
   });
   el.tooltip.addEventListener('click', function (e) {
-    if (e.target.closest('[data-tip-close]')) { hideTip(); return; }
     const a = e.target.closest('[data-assign]');
     if (a && pinned) { e.preventDefault(); openAssign(TL.parseNodeId(pinned).val, a.dataset.assign); }
   });
@@ -834,8 +862,10 @@
       else hideTip();
     }, 30);
   });
-  window.addEventListener('scroll', function () { if (!$('assign-dialog').open) hideTip(); }, { passive: true });
-  el.wrap.addEventListener('scroll', hideTip, { passive: true });
+  // scrolling moves an open tooltip with its device; a hover tooltip just goes away
+  function onScroll() { if (pinned) placeTip(); else hideTip(); }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  el.wrap.addEventListener('scroll', onScroll, { passive: true });
 
   // ---- boot -----------------------------------------------------------
   applySavedAssignments();

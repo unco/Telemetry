@@ -49,6 +49,22 @@ Site and Environment are **manual** keys: labels people assign, such as Landscap
 - **Effect:** the chart, groups and filter chips update immediately. The assignment is described as being shared with Landscape as a tag. In the prototype, assignments and new values are saved in the browser, and **Reset assignments** in the footer clears both.
 - **Model:** each device keeps its true site, so its snaps, health and the incident data don't change while the label is missing.
 
+## Device tooltip
+
+**Hover** shows a quick preview. **Click (or tap) a device** to open its tooltip.
+
+**Stays open while you:**
+- expand Sustainability or use an Assign link (the assign dialog doesn't close it);
+- scrub the timeline, which updates its contents to the selected month;
+- scroll the page, since it's anchored to its device.
+
+**Closes on:**
+- a click outside the chart;
+- a click on another device, which opens that device's tooltip instead;
+- a click on a non-device node;
+- a filter change: view, group by, colour chips, filter chips or device search;
+- Escape, for keyboard users.
+
 ## Publishers (snaps)
 
 The fleet is modelled on a large retailer or manufacturer, spread across retail stores, factory floors, distribution centres, data centres and public cloud. Most publishers are the customer's own or partner applications; Canonical infrastructure snaps are a minority.
@@ -127,7 +143,7 @@ For example, `ldn-plant-04` is on 20.04 without Pro. Its hardware is 6 years old
 - **Edge devices without `landscape-client`:** shown as not measured.
 - **Virtual machines:** shown as not attributed.
 
-**Tooltip.** Sustainability is an accordion in the device tooltip. On hover it's collapsed to a one-line summary (lifecycle status · kWh/month). Clicking or tapping a device pins the tooltip so the accordion can be opened; close it with ✕, Escape, or a click elsewhere. The section starts open in the Lifecycle and Energy views and collapsed elsewhere, and once someone opens or closes it, that choice is remembered.
+**Tooltip.** Sustainability is an accordion in the device tooltip. On hover it's collapsed to a one-line summary (lifecycle status · kWh/month). Clicking or tapping a device opens its tooltip, where the accordion can be expanded and Assign links used (see **Device tooltip** below). The section starts open in the Lifecycle and Energy views and collapsed elsewhere, and once someone opens or closes it, that choice is remembered.
 
 **Views.** Both layers are also views (and group-by options) under **Sustainability** in the view dropdown:
 - **Lifecycle** colours devices by status: can stay in service, standard support ending, software-only replacement risk, hardware due for refresh, or virtual. The KPI counts devices at software-only risk plus those whose support is ending; it rises from April 2026, a year before 22.04 standard support ends, then falls as devices upgrade to 26.04.
