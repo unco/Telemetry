@@ -21,7 +21,8 @@
     excluded: {},            // { dim: { valueId: true } }
     query: '',               // device name filter
     selected: null, hover: null,
-    month: LAST, baseline: 'none', playing: false
+    month: LAST, baseline: 'none', playing: false,
+    sustainOpen: null        // sustainability accordion in tooltips; null = default for the view
   };
 
   const $ = function (id) { return document.getElementById(id); };
@@ -447,16 +448,33 @@
   }
 
   // ---- tooltip --------------------------------------------------------
-  function showTip(e, html) {
-    if (!html) return hideTip();
-    el.tooltip.innerHTML = html; el.tooltip.hidden = false;
+  // The tooltip follows hover. Clicking a device pins it, which makes it
+  // interactive (so the Sustainability accordion can be opened or closed).
+  let pinned = null, tipAnchor = null;
+  function placeTip() {
+    if (!tipAnchor) return;
     const r = el.tooltip.getBoundingClientRect();
-    let x = e.clientX + 14, y = e.clientY + 14;
-    if (x + r.width > window.innerWidth - 8) x = e.clientX - r.width - 14;
-    if (y + r.height > window.innerHeight - 8) y = e.clientY - r.height - 14;
+    let x = tipAnchor.x + 14, y = tipAnchor.y + 14;
+    if (x + r.width > window.innerWidth - 8) x = Math.max(8, tipAnchor.x - r.width - 14);
+    if (y + r.height > window.innerHeight - 8) y = Math.max(8, window.innerHeight - r.height - 8);
     el.tooltip.style.left = x + 'px'; el.tooltip.style.top = y + 'px';
   }
-  function hideTip() { el.tooltip.hidden = true; }
+  function showTip(e, html) {
+    if (pinned) return; // a pinned tooltip ignores hover
+    if (!html) return hideTip();
+    el.tooltip.classList.remove('is-pinned');
+    el.tooltip.innerHTML = html; el.tooltip.hidden = false;
+    tipAnchor = { x: e.clientX, y: e.clientY }; placeTip();
+  }
+  function pinTip(e, id) {
+    pinned = id;
+    const html = tipForNode(id);
+    if (!html) return hideTip();
+    el.tooltip.innerHTML = '<button type="button" class="tooltip__close" data-tip-close aria-label="Close details">✕</button>' + html;
+    el.tooltip.classList.add('is-pinned'); el.tooltip.hidden = false;
+    tipAnchor = { x: e.clientX, y: e.clientY }; placeTip();
+  }
+  function hideTip() { pinned = null; el.tooltip.classList.remove('is-pinned'); el.tooltip.hidden = true; }
   function segBreakdown(seg, total) {
     return attr().values.map(function (v) {
       const x = seg[v.id] || 0; if (!x) return '';
@@ -465,6 +483,8 @@
   }
   // Sustainability section of a device tooltip: lifecycle, then energy
   function sustainHtml(s) {
+    const open = state.sustainOpen != null ? state.sustainOpen : (view().attr === 'lifecycle' || view().attr === 'energy');
+    const summary = TL.valueOf('lifecycle', s.cat).label + (s.physical && s.measuredBy ? ' · ' + Math.round(s.kwh) + ' kWh/month' : '') + (s.idle ? ' · idle' : '');
     const rows = [];
     rows.push(['Hardware age', s.physical ? s.ageYears.toFixed(1) + ' years' : 'Virtual (sits with the host or cloud provider)']);
     rows.push(['Supported until', TL.monthLabel(s.supportedUntil) + (s.pro ? ' · Ubuntu Pro' : ' · standard')]);
@@ -477,8 +497,10 @@
     } else {
       rows.push(['Energy', '<span class="tooltip__band">Not attributed (virtual)</span>']);
     }
-    return '<div class="tooltip__section">Sustainability</div><dl class="tooltip__attrs tooltip__attrs--sustain">' +
-      rows.map(function (r) { return '<dt>' + r[0] + '</dt><dd>' + (r[0] === 'Lifecycle' ? esc(r[1]) : r[1]) + '</dd>'; }).join('') + '</dl>';
+    return '<details class="tooltip__acc" data-acc="sustain"' + (open ? ' open' : '') + '>' +
+      '<summary><span class="tooltip__section">Sustainability</span><span class="tooltip__sum">' + esc(summary) + '</span></summary>' +
+      '<dl class="tooltip__attrs tooltip__attrs--sustain">' +
+      rows.map(function (r) { return '<dt>' + r[0] + '</dt><dd>' + (r[0] === 'Lifecycle' ? esc(r[1]) : r[1]) + '</dd>'; }).join('') + '</dl></details>';
   }
   function tipForLink(key) {
     const l = lastLayout && lastLayout.links.filter(function (x) { return x.key === key; })[0];
@@ -518,7 +540,8 @@
     const cnt = tab().comments ? (TL.comments.counts(ctx())[id] || 0) : 0;
     return '<div class="tooltip__dim">' + esc(TL.DIMENSIONS[n.dim].label) + '</div>' +
       '<strong>' + esc(v.label) + '</strong><div>' + fmt(n.value) + ' events/day</div>' + body +
-      '<div class="tooltip__hint">' + (tab().comments ? (cnt ? cnt + ' comment' + (cnt > 1 ? 's' : '') + ' · ' : '') + 'Click to ' + (cnt ? 'open thread' : 'comment') : 'Click to pin the trace') + '</div>';
+      '<div class="tooltip__hint">' + (pinned === id ? (cnt ? cnt + ' comment' + (cnt > 1 ? 's' : '') + ' in the panel' : 'Add a comment in the panel') :
+        (cnt ? cnt + ' comment' + (cnt > 1 ? 's' : '') + ' · ' : '') + (n.dim === 'device' ? 'Click to pin details and comment' : 'Click to ' + (cnt ? 'open thread' : 'comment'))) + '</div>';
   }
 
   // ---- events ---------------------------------------------------------
@@ -573,7 +596,7 @@
       if (l) showTip(e, tipForLink(l.dataset.link)); else hideTip();
     }
   });
-  el.svg.addEventListener('mouseleave', function () { hideTip(); if (state.hover) { state.hover = null; render(); } });
+  el.svg.addEventListener('mouseleave', function () { if (!pinned) hideTip(); if (state.hover) { state.hover = null; render(); } });
   function selectNode(id) {
     state.selected = state.selected === id ? null : id;
     state.hover = null;
@@ -589,12 +612,23 @@
     pressed = null;
     if (id) selectNode(id);
     else if (state.selected) { state.selected = null; render(); }
+    // devices pin an interactive tooltip; anything else releases it
+    if (id && state.selected === id && TL.parseNodeId(id).dim === 'device') {
+      const ev = { clientX: e.clientX, clientY: e.clientY };
+      setTimeout(function () { pinTip(ev, id); }, 30);
+    } else if (pinned) hideTip();
   });
+  el.tooltip.addEventListener('click', function (e) { if (e.target.closest('[data-tip-close]')) hideTip(); });
+  // remember the accordion choice, and keep the tooltip on screen as it grows
+  el.tooltip.addEventListener('toggle', function (e) {
+    if (e.target.matches && e.target.matches('details[data-acc="sustain"]')) { state.sustainOpen = e.target.open; placeTip(); }
+  }, true);
   el.svg.addEventListener('keydown', function (e) {
     const n = e.target.closest('[data-node]');
     if (n && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); selectNode(n.dataset.node); }
   });
   document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && pinned) { hideTip(); return; }
     if (e.key === 'Escape' && state.selected) { state.selected = null; render(); }
     if (e.key === ' ' && tab().time && e.target === document.body) { e.preventDefault(); state.playing ? stopPlay() : play(); }
   });
@@ -651,6 +685,7 @@
   el.svg.addEventListener('click', function (e) {
     if (lastPointer !== 'touch') return;
     const n = e.target.closest('[data-node]'), l = e.target.closest('[data-link]');
+    if (n && TL.parseNodeId(n.dataset.node).dim === 'device') return; // devices pin instead
     setTimeout(function () {
       if (n) showTip(e, tipForNode(n.dataset.node));
       else if (l) showTip(e, tipForLink(l.dataset.link));

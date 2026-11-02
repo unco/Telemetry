@@ -114,6 +114,8 @@ For example, `ldn-plant-04` is on 20.04 without Pro. Its hardware is 6 years old
 - **Edge devices without `landscape-client`:** shown as not measured.
 - **Virtual machines:** shown as not attributed.
 
+**Tooltip.** Sustainability is an accordion in the device tooltip. On hover it's collapsed to a one-line summary (lifecycle status · kWh/month). Clicking or tapping a device pins the tooltip so the accordion can be opened; close it with ✕, Escape, or a click elsewhere. The section starts open in the Lifecycle and Energy views and collapsed elsewhere, and once someone opens or closes it, that choice is remembered.
+
 **Views.** Both layers are also views (and group-by options) under **Sustainability** in the view dropdown:
 - **Lifecycle** colours devices by status: can stay in service, standard support ending, software-only replacement risk, hardware due for refresh, or virtual. The KPI counts devices at software-only risk plus those whose support is ending; it rises from April 2026, a year before 22.04 standard support ends, then falls as devices upgrade to 26.04.
 - **Energy** colours devices by monthly kWh band, on a sequential pale-taupe-to-rust ramp. Unmeasured and virtual devices are grey. The KPI shows total measured energy and how many idle devices are still powered on.

@@ -305,3 +305,17 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .tooltip__attrs--sustain { margin-top: 4px; }
 .tooltip__attrs--sustain dd { max-width: 220px; }
 .tooltip__flag { color: #f0b48f; }
+
+/* Pinned tooltip + sustainability accordion */
+.tooltip.is-pinned { pointer-events: auto; padding-right: 30px; box-shadow: 0 4px 16px rgba(0,0,0,.35); }
+.tooltip__close { position: absolute; top: 4px; right: 4px; width: 24px; height: 24px; border: 0; background: none; color: #bbb; cursor: pointer; font-size: .75rem; }
+.tooltip__close:hover { color: #fff; }
+.tooltip__acc { margin-top: 8px; padding-top: 6px; border-top: 1px solid #333; }
+.tooltip__acc summary { list-style: none; cursor: pointer; display: flex; flex-direction: column; gap: 1px; position: relative; padding-right: 16px; }
+.tooltip__acc summary::-webkit-details-marker { display: none; }
+.tooltip__acc summary::after { content: "▸"; position: absolute; right: 0; top: 0; color: #bbb; transition: transform .15s; }
+.tooltip__acc[open] summary::after { transform: rotate(90deg); }
+.tooltip__acc .tooltip__section { margin: 0; padding: 0; border: 0; }
+.tooltip__sum { font-size: .75rem; color: #ddd; }
+.tooltip__acc[open] .tooltip__sum { display: none; }
+.tooltip:not(.is-pinned) .tooltip__acc summary::after { opacity: .5; }
