@@ -20,9 +20,11 @@
  */
 (function (TL) {
   'use strict';
-  const KEY = 'tl.insights.comments.v12';
+  const KEY = 'tl.insights.comments.v13';
 
   const SEED = [
+    { anchor: { view: 'sovereignty', groupBy: 'sovereignty', node: 'publisher:pos', period: null },
+      author: 'Data protection officer', body: 'Till data from EU and UK stores matches the residency rules (R4, R5) first, so PII redaction (R6) never runs on it. Either move redaction ahead of residency, or redact inside R4 and R5.' },
     { anchor: { view: 'lifecycle', groupBy: 'device', node: 'device:ldn-plant-04', period: null },
       author: 'Sustainability lead', body: 'ldn-plant-04 is on the replacement list, but the hardware has years left. Attaching Ubuntu Pro would keep it in service until April 2030 and avoid buying a new device.' },
     { anchor: { view: 'lifecycle', groupBy: 'lifecycle', node: 'lifecycle:ending', period: '2026-04' },

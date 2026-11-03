@@ -43,6 +43,11 @@ Prototype of the **Insights** page (Telemetry product): a single-page Sankey. Se
 - No snapd / telemetry endpoint markers in the chart (removed at the user's request).
 - Columns top-aligned (top stream horizontal, others rise into it); flows fairly transparent.
 
+## Data insights
+- Strip under the header, collapsed by default with heading "N data insights available"; computed from the whole fleet for the timeline month (6 on mid, 2 on hobby).
+- Each insight: Vanilla-style badge for audience (Compliance / Platform / Sustainability), title, one-line evidence, "Show me" (sets view + group-by, clears filters, selects node so its comments open).
+- Compliance insights are framed as rule conflicts (R4/R5 before R6 redaction; R2 before residency), not zone-crossing flags.
+
 ## Fleet size ladder
 - Fleet chosen only by invisible URL param: `?fleet=hobby` (6 home-lab devices) · default/`mid` (38) · `enterprise` (5,000 = the 38 + generated extras; the 38 keep identical data).
 - Unassigned devices are NOT always shown in the top 20 (decided with the user); they're reached via device search or Group by Site → Unassigned → "Show devices in this group".

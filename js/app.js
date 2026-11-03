@@ -347,6 +347,7 @@
       parts.push('<p>' + n.toLocaleString('en-GB') + ' devices, grouped by ' + esc(label(groupBy()).toLowerCase()) +
         '. Select a group to see its devices.</p>');
     }
+    drawInsights();
     el.ladder.hidden = !parts.length;
     el.ladder.innerHTML = parts.join('');
   }
@@ -724,6 +725,88 @@
   }
 
   // ---- events ---------------------------------------------------------
+  // ---- Data insights ------------------------------------------------------
+  // Findings calculated from the whole fleet for the month on the timeline. Each has an
+  // audience badge and a "Show me" preset (view, group-by, node to select).
+  const insightMemo = {};
+  function findings(m) {
+    const k = m + '|' + memoEpoch;
+    if (insightMemo[k]) return insightMemo[k];
+    const facts = TL.snapshot(m), devs = {};
+    facts.forEach(function (f) { devs[f.device] = Object.getPrototypeOf(f); });
+    const A = Object.keys(devs).map(function (id) { return devs[id]; });
+    const sumOf = function (xs) { return xs.reduce(function (p, f) { return p + f.count; }, 0); };
+    const nDev = function (xs) { const s = {}; xs.forEach(function (f) { s[f.device] = 1; }); return Object.keys(s).length; };
+    const n = function (x) { return x.toLocaleString('en-GB'); };
+    const out = [];
+    // 1. residency rules match before PII redaction
+    const red = facts.filter(function (f) { return (f.publisher === 'pos' || f.publisher === 'shelfcam') && (f.rule === 'R4' || f.rule === 'R5'); });
+    if (red.length) out.push({ id: 'redact', audience: 'Compliance', title: 'Residency rules switch off PII redaction',
+      text: n(nDev(red)) + ' devices send ' + fmt(sumOf(red)) + ' events/day from pos-terminal and shelf-vision without redaction: the residency rules (R4, R5) match before PII redaction (R6).',
+      show: { view: 'sovereignty', groupBy: 'sovereignty', select: 'publisher:pos' } });
+    // 2. payment rule matches before residency
+    const pay = facts.filter(function (f) { return f.publisher === 'payment' && (f.sovereignty === 'eu' || f.sovereignty === 'uk') && f.destination === 'lake-us'; });
+    if (pay.length) out.push({ id: 'payment', audience: 'Compliance', title: 'Payment telemetry bypasses residency',
+      text: n(nDev(pay)) + ' EU/UK devices send ' + fmt(sumOf(pay)) + ' events/day of payment-vault telemetry to the US data lake: rule R2 matches before the residency rules (R4, R5).',
+      show: { view: 'sovereignty', groupBy: 'sovereignty', select: 'destination:lake-us' } });
+    // 3. Juju 2.9 health
+    const j29 = A.filter(function (a) { return a.juju === '2.9'; }), rest = A.filter(function (a) { return a.juju !== '2.9'; });
+    const avg = function (xs) { return xs.length ? Math.round(xs.reduce(function (p, a) { return p + a.healthScore; }, 0) / xs.length) : 0; };
+    if (j29.length && avg(rest) - avg(j29) >= 10) out.push({ id: 'juju29', audience: 'Platform', title: 'Juju 2.9 devices are the least healthy',
+      text: n(j29.length) + ' devices on Juju 2.9 average ' + avg(j29) + ' health, against ' + avg(rest) + ' for the rest of the fleet.',
+      show: { view: 'health', groupBy: 'juju', select: 'juju:2.9' } });
+    // 4. lifecycle: replacement for software reasons alone
+    const sw = A.filter(function (a) { return a.lifecycle === 'software'; }).length, end = A.filter(function (a) { return a.lifecycle === 'ending'; }).length;
+    if (sw + end) out.push({ id: 'lifecycle', audience: 'Sustainability', title: 'Devices could be replaced for software reasons alone',
+      text: n(sw) + ' out of standard support and ' + n(end) + ' with support ending soon, on hardware that’s still fine. Ubuntu Pro would extend their support.',
+      show: { view: 'lifecycle', groupBy: 'lifecycle', select: end ? 'lifecycle:ending' : 'lifecycle:software' } });
+    // 5. idle but powered on (measured devices only)
+    const idle = A.filter(function (a) { return a.idle && a.energyKwh != null; });
+    if (idle.length) {
+      const bySite = {};
+      idle.forEach(function (a) { bySite[a.site] = (bySite[a.site] || 0) + a.energyKwh; });
+      const top = Object.keys(bySite).sort(function (x, y) { return bySite[y] - bySite[x]; })[0];
+      out.push({ id: 'idle', audience: 'Sustainability', title: 'Idle devices are still powered on',
+        text: n(idle.length) + ' devices under 10% utilisation use ' + n(Math.round(idle.reduce(function (p, a) { return p + a.energyKwh; }, 0))) + ' kWh a month.',
+        show: { view: 'energy', groupBy: 'site', select: 'site:' + top } });
+    }
+    // 6. devices with no Site label
+    const un = A.filter(function (a) { return a.site === 'unassigned'; }).length;
+    if (un) out.push({ id: 'unassigned', audience: 'Platform', title: 'Devices have no Site label',
+      text: n(un) + ' device' + (un === 1 ? '' : 's') + ' can’t be grouped by site until labelled.',
+      show: { view: 'neutral', groupBy: 'site', select: 'site:unassigned' } });
+    return (insightMemo[k] = out);
+  }
+  let insightsOpen = false;
+  function drawInsights() {
+    const list = findings(periodIndex()), strip = $('insights-strip');
+    strip.hidden = !list.length;
+    if (!list.length) return;
+    strip.innerHTML =
+      '<button type="button" class="p-insights__toggle" aria-expanded="' + insightsOpen + '" aria-controls="insights-list">' +
+        '<span class="p-insights__chevron" aria-hidden="true">▸</span>' + list.length + ' data insight' + (list.length === 1 ? '' : 's') + ' available</button>' +
+      '<ul class="p-insights__list" id="insights-list"' + (insightsOpen ? '' : ' hidden') + '>' + list.map(function (f) {
+        return '<li class="p-insights__item"><span class="p-badge">' + esc(f.audience) + '</span>' +
+          '<div class="p-insights__body"><strong>' + esc(f.title) + '</strong><span>' + esc(f.text) + '</span></div>' +
+          '<button type="button" class="p-button p-ladder__btn" data-insight="' + f.id + '">Show me</button></li>';
+      }).join('') + '</ul>';
+  }
+  function showInsight(id) {
+    const f = findings(periodIndex()).filter(function (x) { return x.id === id; })[0];
+    if (!f) return;
+    stopPlay(); hideTip();
+    state.view = f.show.view; state.groupBy = f.show.groupBy;
+    state.scope = null; state.excluded = {}; state.query = ''; state.isolate[state.view] = null;
+    state.selected = f.show.select; state.hover = null;
+    rebuildControls(); render();
+    const chart = document.querySelector('.insights__chart');
+    if (chart && chart.scrollIntoView) chart.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  $('insights-strip').addEventListener('click', function (e) {
+    if (e.target.closest('.p-insights__toggle')) { insightsOpen = !insightsOpen; drawInsights(); return; }
+    const b = e.target.closest('[data-insight]'); if (b) showInsight(b.dataset.insight);
+  });
+
   function rebuildControls() { buildViewSwitch(); buildGroupBy(); buildHighlight(); buildGroupFilter(); }
   function clearColumn1Selection() {
     if (state.selected && TL.PIPELINE.indexOf(TL.parseNodeId(state.selected).dim) < 0) state.selected = null;

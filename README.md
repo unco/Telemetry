@@ -32,6 +32,23 @@ It's a single page with every capability switched on:
 
 **Reset comments** at the bottom of the page restores the seeded comments.
 
+## Data insights
+
+A strip under the page title shows **"N data insights available"**, collapsed by default. The insights are calculated from the whole fleet for the month on the timeline, so the count varies by fleet and month.
+
+When expanded, each insight shows an audience badge (Compliance, Platform or Sustainability, using the Vanilla badge pattern), one line of evidence, and a **Show me** button. The button sets the view and group-by that make the insight visible, clears filters, and selects the node so its comment thread opens.
+
+| Insight | Badge | Show me |
+|---|---|---|
+| Residency rules switch off PII redaction: R4/R5 match before R6 for `pos-terminal` and `shelf-vision` | Compliance | Telemetry residency, `pos-terminal` |
+| Payment telemetry bypasses residency: R2 matches before R4/R5 | Compliance | Telemetry residency, US data lake |
+| Juju 2.9 devices are the least healthy | Platform | Device health by Juju, Juju 2.9 |
+| Devices could be replaced for software reasons alone | Sustainability | Lifecycle, support ending |
+| Idle devices are still powered on (measured devices only) | Sustainability | Energy by Site, the site with the most idle energy |
+| Devices have no Site label | Platform | Neutral by Site, Unassigned |
+
+The two Compliance insights are framed as **rule conflicts** (one rule overriding another), not as zone-crossing flags.
+
 ## Fleet size and the ladder
 
 The page adapts to fleet size. For demos, the fleet is chosen with an invisible URL parameter:
