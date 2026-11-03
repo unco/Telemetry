@@ -56,6 +56,18 @@ Reporting status is measured at the **telemetry endpoint**, per device and per s
 - **It follows the incident:** in June and July, factory devices are partially silent because `opcua-connector` was crash-looping.
 - **Other data is unchanged:** reporting status is generated from its own randomness, so health, flows and volumes are as before.
 
+## Pipeline health panel
+
+A **Pipeline health** panel at the bottom of the page follows the pipe from left to right, for the month on the timeline:
+
+| Stage | Shows |
+|---|---|
+| Devices and snaps | How many devices are reporting normally (from reporting status), with a link to the Reporting status view |
+| Telemetry endpoint | Status, availability, p95 ingest latency, and events received |
+| Destinations | Overall status, plus a table with a row per destination: delivered per day, success rate, p95 latency, and a Healthy/Degraded badge. Clicking a row traces that destination in the chart |
+
+The figures are synthetic and seeded per month (`pipelineHealth` in `js/data.js`). In the latest month the Security SIEM is **Degraded**: rate-limited, with failed deliveries being retried. Landscape's online signal can be joined with telemetry, so the reporting-status cause hints stand.
+
 ## Data insights
 
 A strip under the page title shows **"N data insights available"**, collapsed by default. The insights are calculated from the whole fleet for the month on the timeline, so the count varies by fleet and month.

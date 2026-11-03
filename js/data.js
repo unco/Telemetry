@@ -670,6 +670,21 @@ window.TL = window.TL || {};
   const GROUP_BYS = [];
   GROUP_BY_MENU.forEach(function (e) { if (e.id) GROUP_BYS.push(e.id); else e.items.forEach(function (k) { GROUP_BYS.push(k); }); });
 
+  // ---- Pipeline health (endpoint and destinations), per month ----------------
+  // Synthetic, seeded per month. The Security SIEM is degraded (rate-limited,
+  // retrying) in the latest month; everything else is healthy.
+  function pipelineHealth(m) {
+    const r = mulberry32(161803 + m * 97);
+    const endpoint = { availability: 99.95 + r() * 0.04, p95IngestMs: Math.round(280 + r() * 220) };
+    const destinations = {};
+    DESTINATIONS.values.forEach(function (v) {
+      if (v.id === 'discard') return;
+      destinations[v.id] = { delivered: 99.8 + r() * 0.19, p95Ms: Math.round(400 + r() * 1400), status: 'healthy' };
+    });
+    if (m === MONTHS.length - 1) destinations.siem = { delivered: 96.4, p95Ms: 38000, status: 'degraded', note: 'Rate-limited by the SIEM; failed deliveries are being retried' };
+    return { endpoint: endpoint, destinations: destinations };
+  }
+
   // ---- Manual keys and assignment ----------------------------------------
   // Site and Environment are labels people assign (e.g. Landscape tags), so
   // some devices start without one. The model keeps each device's true site
@@ -718,7 +733,7 @@ window.TL = window.TL || {};
   }
 
   Object.assign(TL, {
-    FLEET: FLEET, MANUAL_KEYS: MANUAL_KEYS, assign: assign, suggest: suggest, addValue: addValue,
+    FLEET: FLEET, pipelineHealth: pipelineHealth, MANUAL_KEYS: MANUAL_KEYS, assign: assign, suggest: suggest, addValue: addValue,
     MONTHS: MONTHS, monthLabel: monthLabel,
     ATTRIBUTES: ATTRIBUTES, DIMENSIONS: DIMENSIONS, ROUTING: ROUTING, PALETTE: PALETTE, HEALTH_COMPONENTS: HEALTH_COMPONENTS, HEALTH_RAMP: HEALTH_RAMP,
     DEVICES: DEVICES, VIEWS: VIEWS, GROUP_BYS: GROUP_BYS, GROUP_BY_MENU: GROUP_BY_MENU, GROUP_BY_LABELS: GROUP_BY_LABELS,

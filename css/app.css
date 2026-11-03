@@ -378,3 +378,30 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .tooltip__report { margin-top: 3px; display: grid; grid-template-columns: auto 1fr; column-gap: 0; }
 .tooltip__report strong { display: inline; font-weight: 600; }
 .tooltip__reporthint { grid-column: 2; color: #ccc; font-size: .75rem; line-height: 1.4; max-width: 260px; }
+
+/* Pipeline health panel (bottom) */
+.p-pipeline { margin-top: 20px; padding: 16px 20px 8px; }
+.p-pipeline__head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 12px; }
+.p-pipeline__title { font-size: 1.25rem; font-weight: 300; margin: 0; }
+.p-pipeline__when { color: var(--muted); font-size: .875rem; }
+.p-pipeline__stages { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 12px; align-items: start; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+.p-pipeline__stage { display: flex; flex-direction: column; gap: 4px; }
+.p-pipeline__big { font-size: 1.25rem; font-weight: 300; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.p-pipeline__sub { font-size: .8125rem; color: var(--muted); }
+.p-pipeline__arrow { color: var(--faint); font-size: 1.25rem; padding-top: 18px; }
+.p-pipeline__tablewrap { overflow-x: auto; }
+.p-pipeline__table { width: 100%; border-collapse: collapse; font-size: .875rem; margin-top: 4px; }
+.p-pipeline__table th { text-align: left; font-weight: 400; font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 8px 8px; border-bottom: 1px solid var(--border); }
+.p-pipeline__table td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.p-pipeline__table tr[data-pipe-node] { cursor: pointer; }
+.p-pipeline__table tr[data-pipe-node]:hover { background: var(--bg-soft); }
+.p-pipeline__table tr.is-degraded td:first-child { font-weight: 500; }
+.p-pipeline__table .u-num { text-align: right; font-family: "Ubuntu Sans Mono", ui-monospace, monospace; white-space: nowrap; }
+.p-pipeline__note { display: block; font-weight: 400; font-size: .75rem; color: var(--muted); }
+.p-badge--positive { background: var(--positive); }
+.p-badge--caution { background: #C49A00; color: #111; }
+@media (max-width: 760px) {
+  .p-pipeline { margin: 16px -16px 0; border-left: 0; border-right: 0; }
+  .p-pipeline__stages { grid-template-columns: 1fr; }
+  .p-pipeline__arrow { display: none; }
+}

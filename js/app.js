@@ -350,6 +350,7 @@
         '. Select a group to see its devices.</p>');
     }
     drawInsights();
+    drawPipeline();
     el.ladder.hidden = !parts.length;
     el.ladder.innerHTML = parts.join('');
   }
@@ -361,6 +362,59 @@
       return '<span class="chart-legend__col' + (i === stg.length - 1 ? ' is-last' : '') + (i === 0 ? ' is-first' : '') + '" style="left:' + (n ? n.x : 0) + 'px">' + esc(label) + '</span>';
     }).join('');
   }
+
+  // ---- Pipeline health panel (bottom of the page) ------------------------
+  // Follows the pipe left to right for the timeline month: devices and snaps → endpoint → destinations.
+  function drawPipeline() {
+    const pi = periodIndex(), ph = TL.pipelineHealth(pi), facts = TL.snapshot(pi);
+    const devs = {}, toDest = {};
+    let received = 0;
+    facts.forEach(function (f) {
+      devs[f.device] = Object.getPrototypeOf(f).reporting;
+      if (f.destination !== 'discard') { received += f.count; toDest[f.destination] = (toDest[f.destination] || 0) + f.count; }
+    });
+    const ids = Object.keys(devs), ok = ids.filter(function (id) { return devs[id] === 'reporting'; }).length;
+    const partial = ids.filter(function (id) { return devs[id] === 'partial'; }).length;
+    const badge = function (st) { return st === 'healthy' ? '<span class="p-badge p-badge--positive">Healthy</span>' : '<span class="p-badge p-badge--caution">Degraded</span>'; };
+    const rows = TL.DIMENSIONS.destination.values.filter(function (v) { return ph.destinations[v.id] && toDest[v.id]; }).map(function (v) {
+      const d = ph.destinations[v.id];
+      return '<tr class="' + (d.status !== 'healthy' ? 'is-degraded' : '') + '" data-pipe-node="destination:' + v.id + '" tabindex="0">' +
+        '<td>' + esc(v.label) + (d.note ? '<span class="p-pipeline__note">' + esc(d.note) + '</span>' : '') + '</td>' +
+        '<td class="u-num">' + fmt(toDest[v.id] * d.delivered / 100) + '/day</td>' +
+        '<td class="u-num">' + d.delivered.toFixed(d.delivered < 99.9 ? 1 : 2) + '%</td>' +
+        '<td class="u-num">' + (d.p95Ms >= 10000 ? Math.round(d.p95Ms / 1000) + ' s' : (d.p95Ms / 1000).toFixed(1) + ' s') + '</td>' +
+        '<td>' + badge(d.status) + '</td></tr>';
+    }).join('');
+    const degraded = Object.keys(ph.destinations).filter(function (k) { return ph.destinations[k].status !== 'healthy' && toDest[k]; }).length;
+    $('pipeline-health').innerHTML =
+      '<header class="p-pipeline__head"><h2 id="pipeline-title" class="p-pipeline__title">Pipeline health</h2><span class="p-pipeline__when">' + TL.monthLabel(TL.MONTHS[pi]) + '</span></header>' +
+      '<div class="p-pipeline__stages">' +
+        '<div class="p-pipeline__stage"><span class="p-field__label">Devices and snaps</span>' +
+          '<div class="p-pipeline__big">' + ok.toLocaleString('en-GB') + ' <span class="p-kpi__unit">of ' + ids.length.toLocaleString('en-GB') + ' reporting normally</span></div>' +
+          '<div class="p-pipeline__sub">' + (ids.length === ok ? 'No problems' : (ids.length - ok).toLocaleString('en-GB') + ' with problems' +
+            (partial ? (partial === ids.length - ok ? ', all with silent snaps' : ', including ' + partial.toLocaleString('en-GB') + ' with silent snaps') : '')) +
+            '. <a href="#" data-pipe-view="reporting">See reporting status</a></div></div>' +
+        '<div class="p-pipeline__arrow" aria-hidden="true">→</div>' +
+        '<div class="p-pipeline__stage"><span class="p-field__label">Telemetry endpoint</span>' +
+          '<div class="p-pipeline__big">' + badge('healthy') + ' <span class="p-kpi__unit">' + ph.endpoint.availability.toFixed(2) + '% available</span></div>' +
+          '<div class="p-pipeline__sub">p95 ingest ' + (ph.endpoint.p95IngestMs / 1000).toFixed(1) + ' s · ' + fmt(received) + ' events/day received</div></div>' +
+        '<div class="p-pipeline__arrow" aria-hidden="true">→</div>' +
+        '<div class="p-pipeline__stage"><span class="p-field__label">Destinations</span>' +
+          '<div class="p-pipeline__big">' + (degraded ? badge('degraded') + ' <span class="p-kpi__unit">' + degraded + ' of ' + Object.keys(toDest).length + ' degraded</span>' : badge('healthy') + ' <span class="p-kpi__unit">all ' + Object.keys(toDest).length + ' healthy</span>') + '</div>' +
+          '<div class="p-pipeline__sub">Delivery to the customer’s own systems</div></div>' +
+      '</div>' +
+      '<div class="p-pipeline__tablewrap"><table class="p-pipeline__table"><thead><tr><th>Destination</th><th class="u-num">Delivered</th><th class="u-num">Success</th><th class="u-num">p95 latency</th><th>Status</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+  }
+  $('pipeline-health').addEventListener('click', function (e) {
+    const v = e.target.closest('[data-pipe-view]');
+    if (v) { e.preventDefault(); hideTip(); state.view = v.dataset.pipeView; state.groupBy = v.dataset.pipeView; state.scope = null; state.excluded = {}; state.query = ''; state.selected = null; rebuildControls(); render(); document.querySelector('.insights__chart').scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+    const row = e.target.closest('[data-pipe-node]');
+    if (row) { hideTip(); state.selected = row.dataset.pipeNode; render(); document.querySelector('.insights__chart').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+  });
+  $('pipeline-health').addEventListener('keydown', function (e) {
+    const row = e.target.closest('[data-pipe-node]');
+    if (row && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); row.click(); }
+  });
 
   function drawKpis(agg) {
     const t = tab(), a = attr(), pi = periodIndex();
