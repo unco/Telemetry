@@ -20,7 +20,13 @@
  */
 (function (TL) {
   'use strict';
-  const KEY = 'tl.insights.comments.v16';
+  // a home lab (?fleet=hobby) keeps its own comments: the organisation's threads don't belong there
+  const HOBBY = TL.FLEET === 'hobby';
+  const KEY = 'tl.insights.comments.v16' + (HOBBY ? '.hobby' : '');
+  const HOBBY_SEED = [
+    { anchor: { view: 'energy', groupBy: 'device', node: 'device:nas-01', period: '2026-10' }, createdAt: '2026-10-12T21:15:00Z',
+      author: 'Me', body: 'NAS idles most of the day. Try a spin-down schedule for the backup disks, but keep it up for warty-server-mcp.' }
+  ];
 
   const SEED = [
     { anchor: { view: 'neutral', groupBy: 'device', node: 'publisher:mcp', period: '2026-09' }, createdAt: '2026-09-24T10:00:00Z',
@@ -90,7 +96,7 @@
   }
   function seed() {
     const base = Date.parse('2026-10-20T09:00:00Z');
-    return SEED.map(function (c, i) {
+    return (HOBBY ? HOBBY_SEED : SEED).map(function (c, i) {
       return Object.assign({ id: uid(), createdAt: new Date(base + i * 3600e3 * 7).toISOString(), resolved: false }, c);
     });
   }

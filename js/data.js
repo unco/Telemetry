@@ -218,7 +218,10 @@ window.TL = window.TL || {};
     { id: 'ai-audit', label: 'AI access audit' },
     { id: 'local', label: 'On-prem only' },
     { id: 'schema', label: 'Schema validation' },
-    { id: 'shaping', label: 'Shaping (rate limits)' }] };
+    { id: 'shaping', label: 'Shaping (rate limits)' },
+    // free plan (home lab): capped sharing
+    { id: 'updates', label: 'Updates only' },
+    { id: 'shared', label: 'Shared with Canonical' }] };
   // Destinations are the customer's own systems (illustrative roles for a
   // large enterprise). `zone` = where the system stores data, used to spot
   // telemetry leaving its residency zone.
@@ -232,6 +235,8 @@ window.TL = window.TL || {};
     { id: 'itsm', label: 'ITSM · incident tickets', zone: 'us' },
     { id: 'landscape', label: 'Landscape (on-prem)', zone: 'onprem' },
     { id: 'archive', label: 'Compliance archive (7-year)', zone: 'onprem' },
+    { id: 'store', label: 'Snap Store (update checks)', zone: 'canonical' },
+    { id: 'canonical', label: 'Canonical telemetry', zone: 'canonical' },
     { id: 'drop-schema', label: 'Dropped by schema', zone: 'none', drop: true, note: 'Events that didn’t match the snap’s registered schema' },
     { id: 'drop-shaping', label: 'Dropped by shaping', zone: 'none', drop: true, note: 'Events over the snap’s rate limit, or sampled out' }] };
 
@@ -248,7 +253,6 @@ window.TL = window.TL || {};
     { id: 'R5', at: 'endpoint', when: { sovereignty: 'uk' }, policy: 'uk-res', to: [['lake-uk', 0.75], ['archive', 0.25]] },
     { id: 'R6', at: 'endpoint', when: { publisher: ['pos', 'shelfcam'] }, policy: 'redact', to: [['lake-us', 0.6], ['observability', 0.25], ['siem', 0.15]] },
     { id: 'R7', at: 'endpoint', when: { publisher: ['plc', 'predmaint', 'coldchain'] }, policy: 'ot', to: [['observability', 0.45], ['itsm', 0.35], ['lake-us', 0.2]] },
-    { id: 'R9', at: 'endpoint', when: { publisher: ['homeauto', 'media', 'filesync', 'dns'] }, policy: 'standard', to: [['observability', 1]] },
     { id: 'R8', at: 'endpoint', when: {}, policy: 'standard', to: [['observability', 0.5], ['cmdb', 0.25], ['siem', 0.1], ['lake-us', 0.15]] }
   ];
   function route(attrs, publisher) {
@@ -348,7 +352,7 @@ window.TL = window.TL || {};
     ['home-pi-01', 'edge', '2404', ['homeauto', 'dns'], false, 'none', 'none'],
     ['home-pi-02', 'edge', '2204', ['homeauto'], true, 'member', 'none'],
     ['media-nuc', 'metal', '2404', ['media', 'filesync'], true, 'member', 'none'],
-    ['nas-01', 'metal', '2204', ['filesync'], false, 'none', 'none'],
+    ['nas-01', 'metal', '2204', ['filesync', 'mcp'], false, 'none', 'none'],
     ['lab-vm-01', 'vm', '2404', ['homeauto', 'media'], true, 'none', '3.6'],
     ['lab-vm-02', 'vm', '2604', ['dns'], false, 'none', 'none']
   ];
@@ -540,6 +544,7 @@ window.TL = window.TL || {};
       const a = attrsAt(d, m);
       const vol = d.scale * Math.pow(1 + d.growth, m);
       publishersFor(d, a).forEach(function (pub) {
+        if (FLEET === 'hobby') return homeFacts(d, a, pub, vol, facts);
         const r = route(a, pub);
         const hit = pub === 'plc' && !(d.closeup && d.closeup.spared); // held plants never ran r214
         const base = BASE_RATE[pub] * vol * (hit && INCIDENT.volume[m] ? INCIDENT.volume[m] : 1);
@@ -656,6 +661,45 @@ window.TL = window.TL || {};
     const d = DEVICES.filter(function (x) { return x.id === id; })[0];
     if (!d || !d.closeup) return null;
     return { refreshAt: d.closeup.refreshAt, spared: d.closeup.spared, state: closeupState(d, h) };
+  }
+
+  // ---- Home lab (free plan) ------------------------------------------------
+  // The free plan is capped: every machine's snaps only check the Snap Store for
+  // updates, and one machine shares its telemetry with Canonical.
+  // Ubuntu Pro is free on up to 5 machines for personal use.
+  const HOME = { sharing: 'home-pi-01', mcpHost: 'nas-01', proSeats: 5,
+    // kernel security fixes waiting for a reboot (days), on machines without Livepatch
+    reboot: { 'home-pi-01': 12, 'media-nuc': 3 } };
+  function homeFacts(d, a, pub, vol, facts) {
+    const push = function (policy, dest, rule, count, size) {
+      const f = Object.create(a);
+      f.device = d.id; f.publisher = pub; f.policy = policy; f.destination = dest; f.rule = rule; f.count = count; f.bytes = count * size;
+      facts.push(f);
+    };
+    push('updates', 'store', 'Free plan', 24, 300); // hourly refresh checks
+    if (d.id !== HOME.sharing) return;
+    const base = BASE_RATE[pub] * vol, schemaF = SCHEMA_DROP[pub] || 0.006, shapingF = SHAPING_DROP[pub] || 0, size = EVENT_BYTES[pub] || 600;
+    push('schema', 'drop-schema', 'Schema', base * schemaF, size);
+    if (shapingF) push('shaping', 'drop-shaping', 'Shaping', base * shapingF, size);
+    push('shared', 'canonical', 'Free plan', base * (1 - schemaF - shapingF), size);
+  }
+  // The home lab at month m: Pro seats, which machines to attach, and kernel reboots
+  function homeLab(m) {
+    if (FLEET !== 'hobby') return null;
+    const devs = DEVICES.filter(function (d) { return d.onboarded <= m; });
+    const info = devs.map(function (d) {
+      const a = attrsAt(d, m), s = sustainAt(d, a, m);
+      return { id: d.id, pro: d.sustain.pro, physical: d.sustain.physical, release: a.release, standardUntil: s.standardUntil, esmUntil: s.esmUntil,
+        reboot: d.sustain.pro ? 0 : (HOME.reboot[d.id] || 0) };
+    });
+    const used = info.filter(function (x) { return x.pro; });
+    // free seats go to the machines that gain most: shortest standard support first, then pending reboots
+    const without = info.filter(function (x) { return !x.pro; }).sort(function (x, y) {
+      return x.standardUntil < y.standardUntil ? -1 : x.standardUntil > y.standardUntil ? 1 : y.reboot - x.reboot;
+    });
+    const free = Math.max(0, HOME.proSeats - used.length);
+    return { seats: HOME.proSeats, used: used, recommend: without.slice(0, free), left: without.slice(free), devices: info,
+      reboot: info.filter(function (x) { return x.reboot; }), sharing: HOME.sharing, mcpHost: HOME.mcpHost };
   }
 
   // Reporting status per month (own RNG, so health, flows and comments are unchanged).
@@ -828,6 +872,7 @@ window.TL = window.TL || {};
       while (out.length < n) { const d = DEVICES[Math.floor(r() * DEVICES.length)]; if (out.indexOf(d) < 0) out.push(d); }
       return out;
     };
+    if (FLEET === 'hobby') return; // a home lab has no site or environment labels to assign
     pickSome(Math.max(1, Math.round(DEVICES.length * 0.105))).forEach(function (d) { d.attrs.site = 'unassigned'; });
     pickSome(Math.max(1, Math.round(DEVICES.length * 0.08))).forEach(function (d) { d.attrs.environment = 'unassigned'; });
   })();
@@ -869,7 +914,7 @@ window.TL = window.TL || {};
     DEVICES: DEVICES, VIEWS: VIEWS, GROUP_BYS: GROUP_BYS, GROUP_BY_MENU: GROUP_BY_MENU, GROUP_BY_LABELS: GROUP_BY_LABELS,
     PIPELINE: ['publisher', 'policy', 'destination'],
     snapshot: snapshot, deviceAt: deviceAt,
-    CLOSEUP: CLOSEUP, closeupFacts: closeupFacts, closeupDevice: closeupDevice,
+    homeLab: homeLab, CLOSEUP: CLOSEUP, closeupFacts: closeupFacts, closeupDevice: closeupDevice,
     valueOf: valueOf, parseNodeId: parseNodeId, nodeLabel: nodeLabel,
     viewById: function (id) { return VIEWS.filter(function (v) { return v.id === id; })[0]; }
   });

@@ -10,6 +10,11 @@
   'use strict';
   const S = TL.sankey, esc = S.esc, fmt = S.fmt;
   const LAST = TL.MONTHS.length - 1;
+  // A home lab (?fleet=hobby) gets a simpler page: views, group-bys and panels that only
+  // matter to an organisation are hidden.
+  const HOBBY = TL.FLEET === 'hobby';
+  const HOBBY_HIDE = { sovereignty: 1, confidential: 1, jaas: 1, maas: 1, site: 1, region: 1, environment: 1 };
+  function shown(attrId) { return !(HOBBY && HOBBY_HIDE[attrId]); }
 
   // Capabilities switched on for the page (all on; kept as flags so any can be turned off).
   const FEATURES = { groupBy: true, comments: true, time: true };
@@ -179,6 +184,7 @@
     // views without a group are top-level options; grouped views nest under an <optgroup>
     let html = '', open = null;
     TL.VIEWS.forEach(function (v) {
+      if (!shown(v.attr)) return;
       if (v.group !== open) {
         if (open) html += '</optgroup>';
         if (v.group) html += '<optgroup label="' + esc(v.group) + '">';
@@ -196,7 +202,9 @@
     };
     el.groupby.innerHTML = TL.GROUP_BY_MENU.map(function (e) {
       if (e.id) return opt(e.id, e.label);
-      return '<optgroup label="' + esc(e.group) + '">' + e.items.map(function (g) {
+      const items = e.items.filter(shown);
+      if (!items.length) return '';
+      return '<optgroup label="' + esc(e.group) + '">' + items.map(function (g) {
         return opt(g, TL.GROUP_BY_LABELS[g] || TL.ATTRIBUTES[g].label);
       }).join('') + '</optgroup>';
     }).join('');
@@ -350,6 +358,7 @@
         '. Select a group to see its devices.</p>');
     }
     drawInsights();
+    drawHomeLab();
     drawPipeline();
     el.ladder.hidden = !parts.length;
     el.ladder.innerHTML = parts.join('');
@@ -367,6 +376,7 @@
   // Follows the pipe left to right for the timeline month: devices and snaps → endpoint → destinations.
   let pipeOpen = false; // destination details collapsed by default
   function drawPipeline() {
+    if (HOBBY) { $('pipeline-health').hidden = true; return; } // the free plan's pipe is Canonical's to run
     const pi = periodIndex(), ph = TL.pipelineHealth(pi), facts = TL.snapshot(pi);
     const devs = {}, toDest = {}, toDestB = {}, dropped = { 'drop-schema': 0, 'drop-shaping': 0 };
     let received = 0, receivedB = 0;
@@ -802,7 +812,7 @@
           return '<dt>' + esc(c.label) + ' <span>' + Math.round(c.weight * 100) + '%</span></dt><dd><span class="tooltip__bar"><span style="width:' + v + '%;background:' + TL.valueOf('health', bandOf(v)).color + '"></span></span>' + v + '</dd>';
         }).join('') + '</dl>';
       }
-      body += '<dl class="tooltip__attrs">' + ['site', 'region', 'environment', 'type', 'juju', 'jaas', 'maas', 'microcloud', 'sovereignty', 'confidential', 'release'].map(function (k) {
+      body += '<dl class="tooltip__attrs">' + ['site', 'region', 'environment', 'type', 'juju', 'jaas', 'maas', 'microcloud', 'sovereignty', 'confidential', 'release'].filter(shown).map(function (k) {
         let val = esc(TL.valueOf(k, a[k]).label);
         if (a[k] === 'unassigned') {
           // manual key with no label: offer to assign it (only clickable once the tooltip is pinned)
@@ -810,6 +820,7 @@
         }
         return '<dt>' + esc(TL.ATTRIBUTES[k].short) + '</dt><dd' + (k === view().attr ? ' class="is-view"' : '') + '>' + val + '</dd>';
       }).join('') + '</dl>';
+      if (HOBBY) body += homeTipHtml(n.val);
       body += sustainHtml(d.sustain);
       const hist = d.changes.filter(function (c) { return c.month <= periodIndex(); });
       if (hist.length) body += '<div class="tooltip__hist">' + hist.map(function (c) { return esc(TL.monthLabel(TL.MONTHS[Math.min(c.month, LAST)], true)) + ' · ' + esc(c.note); }).join('<br>') + '</div>';
@@ -818,7 +829,8 @@
     }
     if (n.dim === 'policy') {
       const rules = TL.ROUTING.filter(function (r) { return r.policy === n.val; });
-      body += '<div class="tooltip__hint">' + (rules.length ? 'Rule ' + rules.map(function (r) { return r.id; }).join(', ')
+      if (n.val === 'updates' || n.val === 'shared') body += '<div class="tooltip__hint">' + (n.val === 'updates' ? 'Free plan: every machine’s snaps check the Snap Store for updates' : 'Free plan: one machine shares its telemetry with Canonical') + '</div>';
+      else body += '<div class="tooltip__hint">' + (rules.length ? 'Rule ' + rules.map(function (r) { return r.id; }).join(', ')
         : 'Applied to every snap before routing rules; dropped events are counted') + '</div>';
     }
     const cnt = tab().comments ? (TL.comments.counts(ctx())[id] || 0) : 0;
@@ -827,6 +839,137 @@
       '<div class="tooltip__hint">' + (pinned === id ? (cnt ? cnt + ' comment' + (cnt > 1 ? 's' : '') + ' in the panel' : 'Add a comment in the panel') :
         (cnt ? cnt + ' comment' + (cnt > 1 ? 's' : '') + ' · ' : '') + (n.dim === 'device' ? 'Click to pin details and comment' : 'Click to ' + (cnt ? 'open thread' : 'comment'))) + '</div>';
   }
+
+
+  // ---- Home lab panel (?fleet=hobby) -----------------------------------------
+  // Free Ubuntu Pro seats, kernel reboots vs Livepatch, what the free plan shares,
+  // and questions for Warty Ubuntu AI (answered via warty-server-mcp on the lab's NAS).
+  function relLabel(r) { return TL.valueOf('release', r).label; }
+  function names(list) {
+    const ids = list.map(function (x) { return '<strong>' + esc(x.id) + '</strong>'; });
+    return ids.length < 2 ? ids.join('') : ids.slice(0, -1).join(', ') + ' and ' + ids[ids.length - 1];
+  }
+  function proAdvice(h) {
+    if (!h.recommend.length) return h.used.length + ' of your machines use Ubuntu Pro. No free seats left.';
+    const r = h.recommend, sameRel = r.every(function (x) { return x.release === r[0].release; });
+    let s = 'Attach ' + names(r) + (sameRel
+      ? ': on ' + relLabel(r[0].release) + ', Pro extends security updates from ' + TL.monthLabel(r[0].standardUntil) + ' to ' + TL.monthLabel(r[0].esmUntil) + ' and adds Livepatch.'
+      : ': Pro extends their security updates and adds Livepatch.');
+    if (h.left.length) s += ' That leaves ' + names(h.left) + ' without Pro: ' + (h.left.length === 1 ? 'it’s' : 'they’re') + ' on ' + relLabel(h.left[0].release) + ', supported until ' + TL.monthLabel(h.left[0].standardUntil) + ', so ' + (h.left.length === 1 ? 'it needs' : 'they need') + ' it least.';
+    return s;
+  }
+  function rebootText(h) {
+    if (!h.reboot.length) return 'Every machine is running its latest kernel.';
+    return h.reboot.map(function (x) { return '<strong>' + esc(x.id) + '</strong> · kernel security fix waiting ' + x.reboot + ' day' + (x.reboot === 1 ? '' : 's'); }).join('<br>');
+  }
+  function shareStats(m) {
+    let checks = 0, shared = 0, sharedB = 0;
+    TL.snapshot(m).forEach(function (f) {
+      if (f.destination === 'store') checks += f.count;
+      if (f.destination === 'canonical') { shared += f.count; sharedB += f.bytes; }
+    });
+    return { checks: checks, shared: shared, sharedB: sharedB };
+  }
+  const WARTY = [
+    { id: 'pro', q: 'Which machines should get my free Pro seats?', match: /pro|seat|licen|subscri|support/i },
+    { id: 'power', q: 'Why is my NAS always on?', match: /power|energy|electric|idle|nas|always on|watt|kwh/i },
+    { id: 'reboot', q: 'What needs a reboot?', match: /reboot|restart|kernel|livepatch|patch|update/i },
+    { id: 'share', q: 'What does Canonical receive from my lab?', match: /canonical|share|sharing|privacy|send|leave|telemetry|data/i }
+  ];
+  let wartyAnswer = null;
+  function wartyHtml(id) {
+    const m = periodIndex(), h = TL.homeLab(m);
+    if (id === 'pro') return { text: h.used.length + ' of your ' + h.seats + ' free seats are in use (' + names(h.used) + '). ' + proAdvice(h), show: { view: 'lifecycle', node: h.recommend[0] ? 'device:' + h.recommend[0].id : null } };
+    if (id === 'power') {
+      let tot = 0, top = null;
+      // the machine wasting most: the biggest idle draw, else the biggest draw
+      TL.DEVICES.forEach(function (d) {
+        const a = TL.deviceAt(d.id, m).attrs; if (a.energyKwh == null) return;
+        tot += a.energyKwh;
+        if (!top || (a.idle && !top.idle) || (a.idle === top.idle && a.energyKwh > top.kwh)) top = { id: d.id, kwh: a.energyKwh, idle: a.idle };
+      });
+      const s = top && TL.deviceAt(top.id, m).sustain;
+      if (!top) return { text: 'None of your machines report their energy use yet.' };
+      return { text: '<strong>' + esc(top.id) + '</strong> used about ' + Math.round(top.kwh) + ' kWh last month, ' + Math.round(top.kwh / tot * 100) + '% of what your lab measured, ' +
+        (top.idle ? 'while averaging ' + Math.round(s.utilisation) + '% utilisation. It’s powered on but mostly idle: letting its disks spin down, or a sleep schedule overnight, would cut most of that.' : 'at ' + Math.round(s.utilisation) + '% utilisation.') +
+          (top.id === h.mcpHost ? ' It also runs warty-server-mcp, so keep it reachable while you want to ask me questions.' : ''),
+        show: { view: 'energy', node: 'device:' + top.id } };
+    }
+    if (id === 'reboot') {
+      const lp = h.used.length;
+      return { text: (h.reboot.length ? h.reboot.length + ' machine' + (h.reboot.length === 1 ? '' : 's') + ' need a reboot to finish a kernel security fix:<br>' + rebootText(h) + '<br>' : 'Nothing needs a reboot. ') +
+        lp + ' machine' + (lp === 1 ? ' has' : 's have') + ' Livepatch through Ubuntu Pro, which applies kernel fixes without a reboot.' + (h.recommend.length ? ' Attaching your free seats to ' + names(h.recommend) + ' would add it there too.' : ''),
+        show: { view: 'neutral', node: h.reboot[0] ? 'device:' + h.reboot[0].id : null } };
+    }
+    if (id === 'share') {
+      const st = shareStats(m);
+      return { text: 'On the free plan, all ' + h.devices.length + ' machines check the Snap Store for updates (' + fmt(st.checks) + ' checks a day). Only <strong>' + esc(h.sharing) + '</strong> shares its telemetry with Canonical: ' + fmt(st.shared) + ' events, ' + fmtBytes(st.sharedB) + ' a day. Nothing else leaves your lab through telemetry.',
+        show: { view: 'neutral', node: 'destination:canonical' } };
+    }
+    return { text: 'I can answer questions about the machines in this lab. Try one of the questions above.' };
+  }
+  function homeTipHtml(id) {
+    const h = TL.homeLab(periodIndex()), x = h.devices.filter(function (d) { return d.id === id; })[0];
+    if (!x) return '';
+    const rec = h.recommend.some(function (d) { return d.id === id; });
+    const pro = x.pro ? 'Attached · free personal seat' : rec ? 'Not attached · a free seat is available' : 'Not attached · no free seat left';
+    const kernel = x.pro ? 'Livepatch applies fixes without a reboot' : x.reboot ? '<span class="tooltip__flag">Reboot needed</span> · security fix waiting ' + x.reboot + ' days' : 'Up to date';
+    const share = id === h.sharing ? 'Shared with Canonical (free plan)' : 'Update checks only';
+    return '<dl class="tooltip__attrs"><dt>Ubuntu Pro</dt><dd>' + pro + '</dd><dt>Kernel</dt><dd>' + kernel + '</dd><dt>Telemetry</dt><dd>' + share + '</dd>' +
+      (id === h.mcpHost ? '<dt>Runs</dt><dd>warty-server-mcp (Warty Ubuntu AI)</dd>' : '') + '</dl>';
+  }
+  function drawHomeLab() {
+    const box = $('homelab');
+    if (!HOBBY) { box.hidden = true; return; }
+    box.hidden = false;
+    // only redraw when the month or the answer changes, so typing in the box isn't interrupted
+    const key = periodIndex() + '|' + wartyAnswer;
+    if (box.dataset.key === key) return;
+    box.dataset.key = key;
+    const m = periodIndex(), h = TL.homeLab(m), st = shareStats(m);
+    const seats = [];
+    for (let i = 0; i < h.seats; i++) {
+      const u = h.used[i], r = !u && h.recommend[i - h.used.length];
+      seats.push('<span class="p-seat' + (u ? ' is-used' : r ? ' is-suggested' : '') + '" title="' + esc(u ? u.id + ' · Pro attached' : r ? 'Free · suggested for ' + r.id : 'Free') + '"></span>');
+    }
+    const answer = wartyAnswer ? wartyHtml(wartyAnswer) : null;
+    box.innerHTML =
+      '<div class="p-homelab__cards">' +
+        '<div class="p-homelab__card"><div class="p-kpi__label">Ubuntu Pro · free for up to ' + h.seats + ' machines</div>' +
+          '<div class="p-kpi__value">' + h.used.length + ' <span class="p-kpi__unit">of ' + h.seats + ' seats used</span></div><div class="p-seats">' + seats.join('') + '</div>' +
+          '<p class="p-homelab__text">' + proAdvice(h) + '</p></div>' +
+        '<div class="p-homelab__card"><div class="p-kpi__label">Kernel updates</div>' +
+          '<div class="p-kpi__value">' + h.reboot.length + ' <span class="p-kpi__unit">need' + (h.reboot.length === 1 ? 's' : '') + ' a reboot</span></div>' +
+          '<p class="p-homelab__text">' + rebootText(h) + '<br>Livepatch (Ubuntu Pro) applies kernel fixes without a reboot on ' + h.used.length + ' machines.</p></div>' +
+        '<div class="p-homelab__card"><div class="p-kpi__label">Free plan · what’s shared</div>' +
+          '<div class="p-kpi__value">1 <span class="p-kpi__unit">of ' + h.devices.length + ' machines shares telemetry</span></div>' +
+          '<p class="p-homelab__text"><strong>' + esc(h.sharing) + '</strong> shares ' + fmt(st.shared) + ' events (' + fmtBytes(st.sharedB) + ') a day with Canonical. The others only check the Snap Store for updates.</p></div>' +
+      '</div>' +
+      '<form class="p-warty" id="warty-form"><label class="p-warty__label" for="warty-q"><span class="p-warty__mark" aria-hidden="true">✦</span>Ask Warty Ubuntu AI about your lab</label>' +
+        '<div class="p-warty__row"><input class="p-warty__input" id="warty-q" type="text" autocomplete="off" placeholder="e.g. Which machines should get my free Pro seats?"><button class="p-button" type="submit">Ask</button></div>' +
+        '<div class="p-warty__suggest">' + WARTY.map(function (w) { return '<button type="button" class="p-button p-button--small" data-warty="' + w.id + '">' + esc(w.q) + '</button>'; }).join('') + '</div>' +
+        (answer ? '<div class="p-warty__answer" aria-live="polite"><p>' + answer.text + '</p>' + (answer.show ? '<button type="button" class="p-link" data-warty-show="' + esc(JSON.stringify(answer.show)) + '">Show me</button>' : '') + '</div>' : '') +
+        '<p class="p-warty__src">Answers come from warty-server-mcp on ' + esc(h.mcpHost) + ', which reads the machines in this lab.</p>' +
+      '</form>';
+  }
+  $('homelab').addEventListener('click', function (e) {
+    const w = e.target.closest('[data-warty]');
+    if (w) { wartyAnswer = w.dataset.warty; $('warty-q').value = WARTY.filter(function (x) { return x.id === wartyAnswer; })[0].q; drawHomeLab(); return; }
+    const s = e.target.closest('[data-warty-show]');
+    if (s) {
+      const a = JSON.parse(s.dataset.wartyShow);
+      state.view = a.view; state.groupBy = 'device'; state.excluded = {}; state.query = ''; state.selected = a.node;
+      rebuildControls(); render();
+      el.wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+  $('homelab').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const q = $('warty-q').value.trim(); if (!q) return;
+    const hit = WARTY.filter(function (w) { return w.match.test(q); })[0];
+    wartyAnswer = hit ? hit.id : 'none';
+    const keep = q; drawHomeLab(); $('warty-q').value = keep;
+  });
 
   // ---- events ---------------------------------------------------------
   // ---- Data insights ------------------------------------------------------

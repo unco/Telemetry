@@ -65,7 +65,7 @@ Prototype of the **Insights** page (Telemetry product): a single-page Sankey. Se
 - Landscape online/offline can be joined with telemetry (confirmed by the user).
 
 ## Data insights
-- Strip under the header, collapsed by default with heading "N data insights available"; computed from the whole fleet for the timeline month (7 on mid, 2 on hobby).
+- Strip under the header, collapsed by default with heading "N data insights available"; computed from the whole fleet for the timeline month (7 on mid, 1 on hobby).
 - Each insight: Vanilla-style badge for audience (Compliance / SRE / Platform / Sustainability), title, one-line evidence, "Show me" (sets view + group-by, clears filters, selects node so its comments open).
 - Compliance insights are framed as rule conflicts (R4/R5 before R6 redaction; R2 before residency), not zone-crossing flags.
 
@@ -79,6 +79,12 @@ Prototype of the **Insights** page (Telemetry product): a single-page Sankey. Se
 - Crash loops are minutes/hours; monthly data can't show them. Retention model: short rolling fine-grained window (72 h) → triggered retention (alert, change event, manual pin, legal hold), scoped narrowly, reason shown, expiring.
 - One kept window: 16 Jun 2026 22:00–17 Jun 22:00 UTC, triggered by the opcua-connector restarts alert (03:45), scope opcua-connector on factory devices, expires 17 Jun 2027. Diamond on June + "Detail kept" line on the monthly timeline → close-up dialog (`js/closeup.js`) with hourly Sankey, KPIs, numbered events (23:00 r214 stable, 03:45 alert, 08:42 Ana, 09:15 Tom's hold).
 - nyc-plant-02 and sfo-plant-01 were caught by the hold (never ran r214): no factory incident penalty or partial reporting for them in Jun/Jul.
+
+## Home lab (?fleet=hobby)
+- Free plan is capped: every machine only checks the Snap Store for updates; one machine (home-pi-01) shares telemetry with Canonical. Hobby destinations are therefore Canonical's (Snap Store, Canonical telemetry): the exception to "destinations are the customer's own systems".
+- Panel above the controls: Ubuntu Pro free seats (5 for personal use; 3 used, recommend home-pi-01 + media-nuc, home-pi-02 left without) · Kernel updates (reboot needed vs Livepatch) · what's shared · "Ask Warty Ubuntu AI" (4 suggested questions, keyword-matched free text, answers computed from data with Show me, via warty-server-mcp on nas-01).
+- Simpler UI: hide residency, confidential, JAAS, MAAS views; Site/Region/Environment group-bys and tooltip lines; pipeline panel; no unassigned labels. Separate comment store (`.hobby` key) with one seeded note.
+- Not doing: energy as money (tariffs vary too much). Not doing "leaving the network" flags: on the free plan, sending to Canonical is by definition leaving it.
 
 ## warty-server-mcp
 - Canonical MCP server snap (publisher `mcp`, label `warty-server-mcp`) piloted on nyc-dc-01 from Sep 2026 (change note in tooltip). It understands the fleet behind it and gives useful info to **Warty Ubuntu AI**.

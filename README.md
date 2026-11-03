@@ -109,7 +109,7 @@ The page adapts to fleet size. For demos, the fleet is chosen with an invisible 
 
 | URL | Fleet | What the page does |
 |---|---|---|
-| `?fleet=hobby` | 6 home-lab devices with home snaps (`home-automation`, `media-server`, `file-sync`, `dns-filter`) | Shows every device, with no prompts |
+| `?fleet=hobby` | 6 home-lab devices with home snaps (`home-automation`, `media-server`, `file-sync`, `dns-filter`, `warty-server-mcp` on the NAS) | Shows every device, with no prompts, plus the home-lab panel (below) |
 | none, or `?fleet=mid` | The 38 devices described below | Shows the top 20 devices plus **Others**, with a note explaining what Others holds and offering quick group-bys |
 | `?fleet=enterprise` | 5,000 devices: the same 38, plus generated ones | Opens grouped by Site. Select a group, then **Show devices in this group**, to drill into its top 20 plus Others |
 
@@ -134,6 +134,18 @@ The page adapts to fleet size. For demos, the fleet is chosen with an invisible 
 **What the Others note says:** how much telemetry Others holds and, for Health, Lifecycle and Energy, how many devices needing attention it hides. For example: "Others holds 98% of telemetry and 226 of the 246 unhealthy devices".
 
 **Mid fleet unchanged:** the enterprise fleet generates its extra devices after the original 38, so those 38 keep identical data in both fleets.
+
+## Home lab (`?fleet=hobby`)
+
+A home lab gets a simpler page and a panel of its own above the controls:
+
+- **Free plan, capped sharing.** Every machine's snaps only check the Snap Store for updates (policy *Updates only*). One machine, `home-pi-01`, shares its telemetry with Canonical (*Shared with Canonical* → *Canonical telemetry*).
+- **Ubuntu Pro seats.** Pro is free on up to 5 machines for personal use. The card shows 3 of 5 used and recommends where the free seats go: the machines with the shortest standard support first (`home-pi-01`, `media-nuc` on 24.04), then pending reboots. `home-pi-02` (26.04, supported to Apr 2031) is the one left without.
+- **Kernel updates.** Machines without Pro have kernel security fixes waiting for a reboot (`home-pi-01` 12 days, `media-nuc` 3 days); Pro machines have Livepatch.
+- **Ask Warty Ubuntu AI.** A question box with four suggested questions (free Pro seats, why the NAS is always on, what needs a reboot, what Canonical receives). Typed questions are matched by keyword to the same answers. Answers are computed from the lab's data and come with "Show me". They are attributed to `warty-server-mcp` on `nas-01`.
+- **Device tooltip** adds Ubuntu Pro, Kernel and Telemetry (shared or update checks only) lines.
+- **Hidden for a home lab:** Telemetry residency, Confidential compute, JAAS and MAAS views; Site, Region and Environment group-bys and tooltip lines; the Pipeline health panel; Assign (no unassigned labels). Comments are kept separately from the organisation's (one seeded note on `nas-01`).
+- Energy stays in kWh: tariffs vary too much for a reliable cost.
 
 ## Devices
 
