@@ -50,7 +50,7 @@ Prototype of the **Insights** page (Telemetry product): a single-page Sankey. Se
 - Latest month scripted (par-store-02, sgp-dc-01, nyc-cloud-02, fra-store-01, sfo-cloud-02); factory devices partially silent (opcua-connector) in Jun/Jul 2026.
 
 ## Pipeline health panel
-- Panel at the bottom of the page (user: "a pipeline health at the bottom is fine"): Devices and snaps (reporting normally) → Telemetry endpoint (status, availability, p95 ingest, received) → Destinations (table: delivered/day, success %, p95, Healthy/Degraded badge; row click traces the destination).
+- Panel at the bottom of the page (user: "a pipeline health at the bottom is fine"): Devices and snaps (reporting normally) → Telemetry endpoint (status, availability, p95 ingest, received) → Destinations (collapsible table, closed by default: delivered/day, success %, p95, Healthy/Degraded badge; row click traces the destination).
 - Security SIEM degraded (rate-limited, retrying) in the latest month only. No markers in the chart; no claims about snapd queueing.
 - Landscape online/offline can be joined with telemetry (confirmed by the user).
 

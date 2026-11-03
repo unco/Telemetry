@@ -365,6 +365,7 @@
 
   // ---- Pipeline health panel (bottom of the page) ------------------------
   // Follows the pipe left to right for the timeline month: devices and snaps → endpoint → destinations.
+  let pipeOpen = false; // destination details collapsed by default
   function drawPipeline() {
     const pi = periodIndex(), ph = TL.pipelineHealth(pi), facts = TL.snapshot(pi);
     const devs = {}, toDest = {};
@@ -403,9 +404,12 @@
           '<div class="p-pipeline__big">' + (degraded ? badge('degraded') + ' <span class="p-kpi__unit">' + degraded + ' of ' + Object.keys(toDest).length + ' degraded</span>' : badge('healthy') + ' <span class="p-kpi__unit">all ' + Object.keys(toDest).length + ' healthy</span>') + '</div>' +
           '<div class="p-pipeline__sub">Delivery to the customer’s own systems</div></div>' +
       '</div>' +
-      '<div class="p-pipeline__tablewrap"><table class="p-pipeline__table"><thead><tr><th>Destination</th><th class="u-num">Delivered</th><th class="u-num">Success</th><th class="u-num">p95 latency</th><th>Status</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+      '<button type="button" class="p-pipeline__toggle" data-pipe-toggle aria-expanded="' + pipeOpen + '" aria-controls="pipeline-details">' +
+        '<span class="p-insights__chevron" aria-hidden="true">▸</span>' + (pipeOpen ? 'Hide' : 'Show') + ' destination details</button>' +
+      '<div class="p-pipeline__tablewrap" id="pipeline-details"' + (pipeOpen ? '' : ' hidden') + '><table class="p-pipeline__table"><thead><tr><th>Destination</th><th class="u-num">Delivered</th><th class="u-num">Success</th><th class="u-num">p95 latency</th><th>Status</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
   }
   $('pipeline-health').addEventListener('click', function (e) {
+    if (e.target.closest('[data-pipe-toggle]')) { pipeOpen = !pipeOpen; drawPipeline(); return; }
     const v = e.target.closest('[data-pipe-view]');
     if (v) { e.preventDefault(); hideTip(); state.view = v.dataset.pipeView; state.groupBy = v.dataset.pipeView; state.scope = null; state.excluded = {}; state.query = ''; state.selected = null; rebuildControls(); render(); document.querySelector('.insights__chart').scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
     const row = e.target.closest('[data-pipe-node]');

@@ -405,3 +405,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
   .p-pipeline__stages { grid-template-columns: 1fr; }
   .p-pipeline__arrow { display: none; }
 }
+.p-pipeline__toggle { background: none; border: 0; padding: 10px 0; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: .875rem; color: var(--link); }
+.p-pipeline__toggle[aria-expanded="true"] .p-insights__chevron { transform: rotate(90deg); }
+.p-pipeline__tablewrap[hidden] { display: none; }
+.p-pipeline__stages { border-bottom: 0 !important; padding-bottom: 4px !important; }
