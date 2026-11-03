@@ -53,6 +53,12 @@ Prototype of the **Insights** page (Telemetry product): a single-page Sankey. Se
 - Do NOT claim snapd queues/buffers telemetry: that's an unconfirmed design question for the snapd/telemetry engineers.
 - Latest month scripted (par-store-02, sgp-dc-01, nyc-cloud-02, fra-store-01, sfo-cloud-02); factory devices partially silent (opcua-connector) in Jun/Jul 2026.
 
+## Drops, volume and coverage (point 5)
+- Drops: "Dropped by schema" (Schema validation) and "Dropped by shaping" (Shaping (rate limits)) — the user's original design. The opt-out route (R1 / "Not sent") was removed; consent still feeds health. Schema drops spike for opcua-connector in Jun/Jul 2026.
+- Data volume (MB/GB per day from per-snap EVENT_BYTES) shown next to events in tooltips, the Devices reporting KPI and the pipeline table.
+- Energy KPI states coverage ("Measured across N of M devices").
+- Health is a representation of a future Landscape deliverable; components/weights will follow it. Don't redesign the scoring.
+
 ## Pipeline health panel
 - Panel at the bottom of the page (user: "a pipeline health at the bottom is fine"): Devices and snaps (reporting normally) → Telemetry endpoint (status, availability, p95 ingest, received) → Destinations (collapsible table, closed by default: delivered/day, success %, p95, Healthy/Degraded badge; row click traces the destination).
 - Security SIEM degraded (rate-limited, retrying) in the latest month only. No markers in the chart; no claims about snapd queueing.

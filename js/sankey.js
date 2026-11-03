@@ -28,7 +28,7 @@
     for (let i = 0; i < facts.length; i++) {
       const fact = facts[i];
       if (opts.filter && !opts.filter(fact)) continue;
-      const c = fact.count, sv = seg ? fact[seg] : '_';
+      const c = fact.count, by = fact.bytes || 0, sv = seg ? fact[seg] : '_';
       const fo = opts.focus && opts.focus(fact) ? c : 0;
       total += c; addSeg(totalSeg, sv, c);
       let prev = null;
@@ -36,12 +36,12 @@
         // opts.col0 can remap column 1 (e.g. devices outside the top N become 'Others')
         const val = s === 0 && opts.col0 ? opts.col0(fact) : fact[stages[s]];
         const id = stages[s] + ':' + val;
-        const n = nodes[id] || (nodes[id] = { id: id, dim: stages[s], val: val, col: s, value: 0, f: 0, seg: {}, segF: {} });
-        n.value += c; n.f += fo; addSeg(n.seg, sv, c); if (fo) addSeg(n.segF, sv, fo);
+        const n = nodes[id] || (nodes[id] = { id: id, dim: stages[s], val: val, col: s, value: 0, b: 0, f: 0, seg: {}, segF: {} });
+        n.value += c; n.b += by; n.f += fo; addSeg(n.seg, sv, c); if (fo) addSeg(n.segF, sv, fo);
         if (prev) {
           const key = prev + '>' + id;
-          const l = links[key] || (links[key] = { key: key, source: prev, target: id, col: s - 1, value: 0, f: 0, seg: {}, segF: {} });
-          l.value += c; l.f += fo; addSeg(l.seg, sv, c); if (fo) addSeg(l.segF, sv, fo);
+          const l = links[key] || (links[key] = { key: key, source: prev, target: id, col: s - 1, value: 0, b: 0, f: 0, seg: {}, segF: {} });
+          l.value += c; l.b += by; l.f += fo; addSeg(l.seg, sv, c); if (fo) addSeg(l.segF, sv, fo);
         }
         prev = id;
       }
@@ -64,6 +64,7 @@
         const x = A[k], y = B[k];
         const o = Object.assign({}, x || y);
         o.value = lerp(x ? x.value : 0, y ? y.value : 0);
+        o.b = lerp(x ? x.b || 0 : 0, y ? y.b || 0 : 0);
         o.f = lerp(x ? x.f : 0, y ? y.f : 0);
         o.seg = mixSeg(x && x.seg, y && y.seg);
         o.segF = mixSeg(x && x.segF, y && y.segF);

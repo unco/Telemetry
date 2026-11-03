@@ -213,7 +213,8 @@ window.TL = window.TL || {};
     { id: 'attested', label: 'PCI scope · attested only' },
     { id: 'ot', label: 'OT safety & maintenance' },
     { id: 'local', label: 'On-prem only' },
-    { id: 'drop', label: 'Opted out (drop)' }] };
+    { id: 'schema', label: 'Schema validation' },
+    { id: 'shaping', label: 'Shaping (rate limits)' }] };
   // Destinations are the customer's own systems (illustrative roles for a
   // large enterprise). `zone` = where the system stores data, used to spot
   // telemetry leaving its residency zone.
@@ -227,7 +228,8 @@ window.TL = window.TL || {};
     { id: 'itsm', label: 'ITSM · incident tickets', zone: 'us' },
     { id: 'landscape', label: 'Landscape (on-prem)', zone: 'onprem' },
     { id: 'archive', label: 'Compliance archive (7-year)', zone: 'onprem' },
-    { id: 'discard', label: 'Not sent (dropped on device)', zone: 'device' }] };
+    { id: 'drop-schema', label: 'Dropped by schema', zone: 'none', drop: true, note: 'Events that didn’t match the snap’s registered schema' },
+    { id: 'drop-shaping', label: 'Dropped by shaping', zone: 'none', drop: true, note: 'Events over the snap’s rate limit, or sampled out' }] };
 
   // ---- Policy rules (ordered, first match wins) -----------------------
   // `when` matches device attributes and/or publisher; `to` lists
@@ -235,7 +237,6 @@ window.TL = window.TL || {};
   //   'snapd'    – on the device, before the stream leaves it
   //   'endpoint' – at the telemetry endpoint, after demultiplexing
   const ROUTING = [
-    { id: 'R1', at: 'snapd', when: { consent: 'optout' }, policy: 'drop', to: [['discard', 1]] },
     { id: 'R2', at: 'endpoint', when: { publisher: 'payment' }, policy: 'attested', to: [['siem', 0.6], ['archive', 0.25], ['lake-us', 0.15]] },
     { id: 'R3', at: 'endpoint', when: { publisher: 'landscape' }, policy: 'local', to: [['landscape', 0.8], ['cmdb', 0.2]] },
     { id: 'R4', at: 'endpoint', when: { sovereignty: 'eu' }, policy: 'eu-res', to: [['lake-eu', 0.75], ['archive', 0.25]] },
@@ -274,6 +275,16 @@ window.TL = window.TL || {};
     ['sfo', 'edge', 2], ['sfo', 'k8s', 1], ['sfo', 'vm', 2],
     ['sgp', 'metal', 1], ['sgp', 'edge', 3], ['sgp', 'vm', 1]
   ];
+  // Drops are counted where they happen, so their volume is known.
+  // Schema: events that don't match the snap's registered schema (spikes while
+  // opcua-connector r214 crash-loops, Jun/Jul 2026). Shaping: rate limits / sampling.
+  const SCHEMA_DROP = { shelfcam: 0.02, payment: 0.001, predmaint: 0.012 };
+  const SCHEMA_DROP_INCIDENT = { 7: 0.18, 8: 0.12 }; // opcua-connector, by month
+  const SHAPING_DROP = { shelfcam: 0.06, predmaint: 0.05, plc: 0.03, pos: 0.01, order: 0.015, dns: 0.08 };
+  // typical event size per snap, in bytes (for data volume)
+  const EVENT_BYTES = { pos: 850, shelfcam: 2600, signage: 320, coldchain: 220, plc: 420, predmaint: 1300, inventory: 650,
+    order: 950, erp: 1600, payment: 700, landscape: 1200, juju: 520, maas: 430, microcloud: 470,
+    homeauto: 300, media: 520, filesync: 410, dns: 160 };
   const BASE_RATE = { pos: 900, shelfcam: 1400, signage: 120, coldchain: 300, plc: 1100, predmaint: 700,
     inventory: 800, order: 1000, erp: 500, payment: 300, landscape: 350, juju: 350, maas: 250, microcloud: 300,
     homeauto: 600, media: 250, filesync: 400, dns: 900 };
@@ -517,12 +528,19 @@ window.TL = window.TL || {};
       publishersFor(d, a).forEach(function (pub) {
         const r = route(a, pub);
         const base = BASE_RATE[pub] * vol * (pub === 'plc' && INCIDENT.volume[m] ? INCIDENT.volume[m] : 1);
-        r.to.forEach(function (t) {
-          // a fact inherits the device's attributes (shared, not copied: matters at 5,000 devices)
+        const schemaF = (pub === 'plc' && SCHEMA_DROP_INCIDENT[m]) || SCHEMA_DROP[pub] || 0.006;
+        const shapingF = SHAPING_DROP[pub] || 0;
+        const size = EVENT_BYTES[pub] || 600;
+        // a fact inherits the device's attributes (shared, not copied: matters at 5,000 devices)
+        const push = function (policy, dest, rule, count) {
           const f = Object.create(a);
-          f.device = d.id; f.publisher = pub; f.policy = r.policy; f.destination = t[0]; f.rule = r.id; f.count = base * t[1];
+          f.device = d.id; f.publisher = pub; f.policy = policy; f.destination = dest; f.rule = rule; f.count = count; f.bytes = count * size;
           facts.push(f);
-        });
+        };
+        push('schema', 'drop-schema', 'Schema', base * schemaF);
+        if (shapingF) push('shaping', 'drop-shaping', 'Shaping', base * shapingF);
+        const kept = base * (1 - schemaF - shapingF);
+        r.to.forEach(function (t) { push(r.policy, t[0], r.id, kept * t[1]); });
       });
     });
     cache[m] = facts;
@@ -678,7 +696,7 @@ window.TL = window.TL || {};
     const endpoint = { availability: 99.95 + r() * 0.04, p95IngestMs: Math.round(280 + r() * 220) };
     const destinations = {};
     DESTINATIONS.values.forEach(function (v) {
-      if (v.id === 'discard') return;
+      if (v.drop) return;
       destinations[v.id] = { delivered: 99.8 + r() * 0.19, p95Ms: Math.round(400 + r() * 1400), status: 'healthy' };
     });
     if (m === MONTHS.length - 1) destinations.siem = { delivered: 96.4, p95Ms: 38000, status: 'degraded', note: 'Rate-limited by the SIEM; failed deliveries are being retried' };

@@ -368,11 +368,13 @@
   let pipeOpen = false; // destination details collapsed by default
   function drawPipeline() {
     const pi = periodIndex(), ph = TL.pipelineHealth(pi), facts = TL.snapshot(pi);
-    const devs = {}, toDest = {};
-    let received = 0;
+    const devs = {}, toDest = {}, toDestB = {}, dropped = { 'drop-schema': 0, 'drop-shaping': 0 };
+    let received = 0, receivedB = 0;
     facts.forEach(function (f) {
       devs[f.device] = Object.getPrototypeOf(f).reporting;
-      if (f.destination !== 'discard') { received += f.count; toDest[f.destination] = (toDest[f.destination] || 0) + f.count; }
+      received += f.count; receivedB += f.bytes;
+      if (f.destination in dropped) { dropped[f.destination] += f.count; return; }
+      toDest[f.destination] = (toDest[f.destination] || 0) + f.count; toDestB[f.destination] = (toDestB[f.destination] || 0) + f.bytes;
     });
     const ids = Object.keys(devs), ok = ids.filter(function (id) { return devs[id] === 'reporting'; }).length;
     const partial = ids.filter(function (id) { return devs[id] === 'partial'; }).length;
@@ -382,6 +384,7 @@
       return '<tr class="' + (d.status !== 'healthy' ? 'is-degraded' : '') + '" data-pipe-node="destination:' + v.id + '" tabindex="0">' +
         '<td>' + esc(v.label) + (d.note ? '<span class="p-pipeline__note">' + esc(d.note) + '</span>' : '') + '</td>' +
         '<td class="u-num">' + fmt(toDest[v.id] * d.delivered / 100) + '/day</td>' +
+        '<td class="u-num">' + fmtBytes(toDestB[v.id] * d.delivered / 100) + '/day</td>' +
         '<td class="u-num">' + d.delivered.toFixed(d.delivered < 99.9 ? 1 : 2) + '%</td>' +
         '<td class="u-num">' + (d.p95Ms >= 10000 ? Math.round(d.p95Ms / 1000) + ' s' : (d.p95Ms / 1000).toFixed(1) + ' s') + '</td>' +
         '<td>' + badge(d.status) + '</td></tr>';
@@ -398,7 +401,8 @@
         '<div class="p-pipeline__arrow" aria-hidden="true">→</div>' +
         '<div class="p-pipeline__stage"><span class="p-field__label">Telemetry endpoint</span>' +
           '<div class="p-pipeline__big">' + badge('healthy') + ' <span class="p-kpi__unit">' + ph.endpoint.availability.toFixed(2) + '% available</span></div>' +
-          '<div class="p-pipeline__sub">p95 ingest ' + (ph.endpoint.p95IngestMs / 1000).toFixed(1) + ' s · ' + fmt(received) + ' events/day received</div></div>' +
+          '<div class="p-pipeline__sub">p95 ingest ' + (ph.endpoint.p95IngestMs / 1000).toFixed(1) + ' s · ' + fmt(received) + ' events/day (' + fmtBytes(receivedB) + ') received</div>' +
+          '<div class="p-pipeline__sub">Dropped: ' + fmt(dropped['drop-schema']) + ' by schema · ' + fmt(dropped['drop-shaping']) + ' by shaping</div></div>' +
         '<div class="p-pipeline__arrow" aria-hidden="true">→</div>' +
         '<div class="p-pipeline__stage"><span class="p-field__label">Destinations</span>' +
           '<div class="p-pipeline__big">' + (degraded ? badge('degraded') + ' <span class="p-kpi__unit">' + degraded + ' of ' + Object.keys(toDest).length + ' degraded</span>' : badge('healthy') + ' <span class="p-kpi__unit">all ' + Object.keys(toDest).length + ' healthy</span>') + '</div>' +
@@ -406,7 +410,7 @@
       '</div>' +
       '<button type="button" class="p-pipeline__toggle" data-pipe-toggle aria-expanded="' + pipeOpen + '" aria-controls="pipeline-details">' +
         '<span class="p-insights__chevron" aria-hidden="true">▸</span>' + (pipeOpen ? 'Hide' : 'Show') + ' destination details</button>' +
-      '<div class="p-pipeline__tablewrap" id="pipeline-details"' + (pipeOpen ? '' : ' hidden') + '><table class="p-pipeline__table"><thead><tr><th>Destination</th><th class="u-num">Delivered</th><th class="u-num">Success</th><th class="u-num">p95 latency</th><th>Status</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+      '<div class="p-pipeline__tablewrap" id="pipeline-details"' + (pipeOpen ? '' : ' hidden') + '><table class="p-pipeline__table"><thead><tr><th>Destination</th><th class="u-num">Events</th><th class="u-num">Volume</th><th class="u-num">Success</th><th class="u-num">p95 latency</th><th>Status</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
   }
   $('pipeline-health').addEventListener('click', function (e) {
     if (e.target.closest('[data-pipe-toggle]')) { pipeOpen = !pipeOpen; drawPipeline(); return; }
@@ -424,7 +428,8 @@
     const t = tab(), a = attr(), pi = periodIndex();
     const counts = deviceCounts(pi, view().attr);
     const items = [];
-    items.push(kpi('Devices reporting', counts._total.toLocaleString('en-GB'), fmt(agg.total) + ' events/day · ' + (t.time ? TL.monthLabel(TL.MONTHS[pi]) : 'latest month (' + TL.monthLabel(TL.MONTHS[LAST]) + ')')));
+    let aggBytes = 0; Object.keys(agg.nodes).forEach(function (k) { if (agg.nodes[k].col === 0) aggBytes += agg.nodes[k].b || 0; });
+    items.push(kpi('Devices reporting', counts._total.toLocaleString('en-GB'), fmt(agg.total) + ' events/day · ' + fmtBytes(aggBytes) + '/day · ' + (t.time ? TL.monthLabel(TL.MONTHS[pi]) : 'latest month (' + TL.monthLabel(TL.MONTHS[LAST]) + ')')));
     // distribution bar for the view attribute
     const bar = a.values.map(function (v) {
       const c = counts[v.id] || 0; if (!c) return '';
@@ -434,7 +439,7 @@
     if (isNeutral()) {
       // no breakdown to report: summarise the pipeline instead
       const pubs = {}, dests = {};
-      Object.keys(agg.nodes).forEach(function (k) { const n = agg.nodes[k]; if (n.dim === 'publisher') pubs[k] = 1; if (n.dim === 'destination') dests[k] = 1; });
+      Object.keys(agg.nodes).forEach(function (k) { const n = agg.nodes[k]; if (n.dim === 'publisher') pubs[k] = 1; if (n.dim === 'destination' && !TL.valueOf('destination', n.val).drop) dests[k] = 1; });
       items.push(kpi('Pipeline', Object.keys(pubs).length + ' <span class="p-kpi__unit">snaps → </span>' + Object.keys(dests).length + ' <span class="p-kpi__unit">destinations</span>',
         'Pick a view to colour flows by an attribute'));
     } else if (view().attr === 'reporting' && !iso) {
@@ -455,7 +460,8 @@
       const e = energyAt(pi);
       items.push(kpi('Measured energy',
         (e.total >= 1000 ? (e.total / 1000).toFixed(1) + ' <span class="p-kpi__unit">MWh/month</span>' : Math.round(e.total) + ' <span class="p-kpi__unit">kWh/month</span>'),
-        e.idle + ' idle device' + (e.idle === 1 ? '' : 's') + ' still powered on · ' + Math.round(e.idleKwh) + ' kWh/month<span class="p-dist">' + bar + '</span>',
+        'Measured across ' + e.measured.toLocaleString('en-GB') + ' of ' + e.devices.toLocaleString('en-GB') + ' devices · ' +
+        e.idle + ' idle device' + (e.idle === 1 ? '' : 's') + ' still powered on (' + Math.round(e.idleKwh) + ' kWh)<span class="p-dist">' + bar + '</span>',
         t.time ? sparkline(TL.MONTHS.map(function (_, m) { return energyAt(m).total; }), TL.valueOf('energy', 'e4').color) : ''));
     } else if (view().attr === 'health' && !iso) {
       // health is a score: show the fleet average and its trend
@@ -499,16 +505,23 @@
   }
   // measured energy across (filtered) devices in month m, plus the idle-but-powered share
   const energyAt = memoised('energy', energyAtRaw);
+  // data volume (bytes per day) for display next to event counts
+  function fmtBytes(b) {
+    b = b || 0;
+    if (b >= 1e9) return (b / 1e9).toFixed(b >= 1e10 ? 0 : 1) + ' GB';
+    if (b >= 1e6) return (b / 1e6).toFixed(b >= 1e7 ? 0 : 1) + ' MB';
+    return Math.round(b / 1e3) + ' KB';
+  }
   function energyAtRaw(m) {
-    const seen = {}, f = filterFn(); let total = 0, idle = 0, idleKwh = 0;
+    const seen = {}, f = filterFn(); let total = 0, idle = 0, idleKwh = 0, measured = 0, devices = 0;
     TL.snapshot(m).forEach(function (x) {
       if (seen[x.device] || (f && !f(x))) return;
-      seen[x.device] = 1;
+      seen[x.device] = 1; devices++;
       if (x.energyKwh == null) return;
-      total += x.energyKwh;
+      measured++; total += x.energyKwh;
       if (x.idle) { idle++; idleKwh += x.energyKwh; }
     });
-    return { total: total, idle: idle, idleKwh: idleKwh };
+    return { total: total, idle: idle, idleKwh: idleKwh, measured: measured, devices: devices };
   }
   function bandOf(score) {
     score = Math.round(score);
@@ -756,7 +769,7 @@
     const l = lastLayout && lastLayout.links.filter(function (x) { return x.key === key; })[0];
     if (!l) return '';
     return '<strong>' + esc(TL.nodeLabel(l.source)) + ' → ' + esc(TL.nodeLabel(l.target)) + '</strong>' +
-      '<div>' + fmt(l.value) + ' events/day</div>' + segBreakdown(l.seg, l.value);
+      '<div>' + fmt(l.value) + ' events/day · ' + fmtBytes(l.b) + '/day</div>' + segBreakdown(l.seg, l.value);
   }
   function tipForNode(id) {
     const n = lastLayout && lastLayout.nodes.filter(function (x) { return x.id === id; })[0];
@@ -766,7 +779,7 @@
     if (n.dim === 'device' && n.val === '__others') {
       const top = topSet();
       return '<div class="tooltip__dim">Devices outside the top ' + LADDER.top + '</div><strong>' + esc(v.label) + '</strong>' +
-        '<div>' + fmt(n.value) + ' events/day · ' + Math.round((top ? top.share : 0) * 100) + '% of telemetry</div>' +
+        '<div>' + fmt(n.value) + ' events/day · ' + fmtBytes(n.b) + '/day · ' + Math.round((top ? top.share : 0) * 100) + '% of telemetry</div>' +
         (top && top.attention && top.attention.inOthers ? '<div>Includes ' + top.attention.inOthers.toLocaleString('en-GB') + ' ' + esc(top.attention.label) + '</div>' : '') +
         segBreakdown(n.seg, n.value) + '<div class="tooltip__hint">Group devices, or search, to see them individually</div>';
     }
@@ -798,11 +811,12 @@
     }
     if (n.dim === 'policy') {
       const rules = TL.ROUTING.filter(function (r) { return r.policy === n.val; });
-      body += '<div class="tooltip__hint">Rule ' + rules.map(function (r) { return r.id; }).join(', ') + '</div>';
+      body += '<div class="tooltip__hint">' + (rules.length ? 'Rule ' + rules.map(function (r) { return r.id; }).join(', ')
+        : 'Applied to every snap before routing rules; dropped events are counted') + '</div>';
     }
     const cnt = tab().comments ? (TL.comments.counts(ctx())[id] || 0) : 0;
     return '<div class="tooltip__dim">' + esc(TL.DIMENSIONS[n.dim].label) + '</div>' +
-      '<strong>' + esc(v.label) + '</strong><div>' + fmt(n.value) + ' events/day</div>' + body +
+      '<strong>' + esc(v.label) + '</strong><div>' + fmt(n.value) + ' events/day · ' + fmtBytes(n.b) + '/day</div>' + body +
       '<div class="tooltip__hint">' + (pinned === id ? (cnt ? cnt + ' comment' + (cnt > 1 ? 's' : '') + ' in the panel' : 'Add a comment in the panel') :
         (cnt ? cnt + ' comment' + (cnt > 1 ? 's' : '') + ' · ' : '') + (n.dim === 'device' ? 'Click to pin details and comment' : 'Click to ' + (cnt ? 'open thread' : 'comment'))) + '</div>';
   }

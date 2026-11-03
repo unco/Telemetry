@@ -56,6 +56,23 @@ Reporting status is measured at the **telemetry endpoint**, per device and per s
 - **It follows the incident:** in June and July, factory devices are partially silent because `opcua-connector` was crash-looping.
 - **Other data is unchanged:** reporting status is generated from its own randomness, so health, flows and volumes are as before.
 
+## Drops and data volume
+
+**Drops.** Two drop reasons appear as their own policy nodes and destinations. Both are counted where they happen, so their volume is known.
+
+| Drop | Policy node | Destination | Model |
+|---|---|---|---|
+| Schema | Schema validation | Dropped by schema | Events that don't match the snap's registered schema. About 0.6% by default, higher for `shelf-vision`. Spikes to 18% for `opcua-connector` in June 2026 (12% in July) while r214 crash-loops |
+| Shaping | Shaping (rate limits) | Dropped by shaping | Events over a snap's rate limit, or sampled out. Chatty snaps only, e.g. `shelf-vision` 6% and `predictive-maintenance` 5% |
+
+Both apply to every snap before the routing rules. Telemetry from devices that opted out was never collected, so it isn't part of the pipe and has no route. The consent setting still feeds the health score's policy-compliance input.
+
+**Data volume.** Each snap has a typical event size (`EVENT_BYTES` in `js/data.js`), so data volume appears next to event counts in node and flow tooltips, the Devices reporting headline, and the pipeline health table. That's because customers pay their destinations by volume, not events.
+
+**Energy coverage.** The Energy headline states coverage, e.g. "Measured across 25 of 38 devices". Unmeasured and virtual devices are grey in the Energy view.
+
+**Health weights.** Health stands in for a scoring model to be delivered by Landscape. The components and weights shown here are placeholders that will follow that deliverable. The point is that owning Landscape lets health combine with telemetry.
+
 ## Pipeline health panel
 
 A **Pipeline health** panel at the bottom of the page follows the pipe from left to right, for the month on the timeline:
