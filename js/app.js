@@ -60,11 +60,12 @@
   const ATTENTION = {
     health: { label: 'unhealthy devices (health 50 or below)', test: function (a) { return a.healthScore <= 50; } },
     lifecycle: { label: 'devices at lifecycle risk', test: function (a) { return a.lifecycle === 'software' || a.lifecycle === 'ending'; } },
-    energy: { label: 'idle devices still powered on', test: function (a) { return a.idle; } }
+    energy: { label: 'idle devices still powered on', test: function (a) { return a.idle; } },
+    reporting: { label: 'devices not reporting normally', test: function (a) { return a.reporting !== 'reporting'; } }
   };
   const LC_RISK = { software: 0, ending: 1, refresh: 2, service: 3, virtual: 4 };
   function rankLabel() {
-    return { health: 'lowest health', lifecycle: 'lifecycle risk', energy: 'idle first, then energy use' }[view().attr] || 'telemetry volume';
+    return { health: 'lowest health', lifecycle: 'lifecycle risk', energy: 'idle first, then energy use', reporting: 'reporting problems' }[view().attr] || 'telemetry volume';
   }
   // per-device summary for the latest month, honouring filters (ranking is frozen to this month,
   // so the top N doesn't reshuffle while scrubbing the timeline)
@@ -92,6 +93,7 @@
         if (v === 'health') return a.healthScore;
         if (v === 'lifecycle') return LC_RISK[a.lifecycle] * 1e9 - d.vol;
         if (v === 'energy') return (a.idle ? 0 : 1e9) - (a.energyKwh || 0);
+        if (v === 'reporting') return -TL.ATTRIBUTES.reporting.index[a.reporting] * 1e9 - d.vol; // worst status first
         return -d.vol;
       };
       ids.sort(function (x, y) { return score(sum[x]) - score(sum[y]); });
@@ -377,6 +379,12 @@
       Object.keys(agg.nodes).forEach(function (k) { const n = agg.nodes[k]; if (n.dim === 'publisher') pubs[k] = 1; if (n.dim === 'destination') dests[k] = 1; });
       items.push(kpi('Pipeline', Object.keys(pubs).length + ' <span class="p-kpi__unit">snaps → </span>' + Object.keys(dests).length + ' <span class="p-kpi__unit">destinations</span>',
         'Pick a view to colour flows by an attribute'));
+    } else if (view().attr === 'reporting' && !iso) {
+      const bad = counts._total - (counts.reporting || 0);
+      items.push(kpi('<span class="dot" style="background:' + TL.valueOf('reporting', 'silent').color + '"></span>Not reporting normally',
+        bad + ' <span class="p-kpi__unit">device' + (bad === 1 ? '' : 's') + ' of ' + counts._total.toLocaleString('en-GB') + '</span>',
+        '<span class="p-dist">' + bar + '</span>',
+        t.time ? sparkline(TL.MONTHS.map(function (_, m) { const c = deviceCounts(m, 'reporting'); return c._total - (c.reporting || 0); }), TL.valueOf('reporting', 'silent').color) : ''));
     } else if (view().attr === 'lifecycle' && !iso) {
       // the actionable number: devices that would be replaced for software reasons alone
       const sw = counts.software || 0, end = counts.ending || 0;
@@ -649,6 +657,22 @@
       return '<div><span class="dot" style="background:' + (v.color || '#bbb') + '"></span>' + esc(v.label) + ' · ' + S.pct(x, total) + '%</div>';
     }).join('');
   }
+  // Reporting status measured at the endpoint, with a cause hint from the Landscape cross-check
+  function hoursText(h) { return h >= 48 ? Math.round(h / 24) + ' days' : h + ' h'; }
+  function reportHtml(a) {
+    const info = a.reportInfo || { status: 'reporting', lastMin: 2 }, v = TL.valueOf('reporting', info.status);
+    const snap = info.snap ? TL.valueOf('publisher', info.snap).label : '';
+    const hint = {
+      reporting: 'Last received ' + (info.lastMin || 2) + ' min ago',
+      delayed: 'Arriving about ' + info.lagMin + ' min late: data is getting through, but something along the path is holding it up.',
+      partial: snap + ' silent for ' + hoursText(info.hours) + (info.cause ? ' (' + info.cause + ')' : '') + ' while the device’s other snaps report. Check that snap.',
+      silent: 'Silent for ' + hoursText(info.hours) + '. Landscape reports it online, so check snapd or the network path to the endpoint.',
+      offline: 'Offline for ' + hoursText(info.hours) + '. Landscape reports it offline: power or connectivity.',
+      unknown: 'Silent for ' + hoursText(info.hours) + '. Cause unknown: no landscape-client to cross-check.'
+    }[info.status];
+    return '<div class="tooltip__report"><span class="dot" style="background:' + v.color + '"></span><strong>' + esc(v.label) + '</strong>' +
+      '<span class="tooltip__reporthint">' + esc(hint) + '</span></div>';
+  }
   // Sustainability section of a device tooltip: lifecycle, then energy
   function sustainHtml(s) {
     const open = state.sustainOpen != null ? state.sustainOpen : (view().attr === 'lifecycle' || view().attr === 'energy');
@@ -692,7 +716,8 @@
       const d = TL.deviceAt(n.val, periodIndex());
       const a = d.attrs;
       const band = TL.valueOf('health', a.health);
-      body = '<div class="tooltip__health"><span class="dot" style="background:' + band.color + '"></span>Health <strong>' + a.healthScore + '</strong> <span class="tooltip__band">(' + band.label + ')</span></div>';
+      body = '<div class="tooltip__health"><span class="dot" style="background:' + band.color + '"></span>Health <strong>' + a.healthScore + '</strong> <span class="tooltip__band">(' + band.label + ')</span></div>' +
+        reportHtml(a);
       if (view().attr === 'health') {
         body += '<dl class="tooltip__parts">' + TL.HEALTH_COMPONENTS.map(function (c) {
           const v = Math.round(a.healthParts[c.id]);
@@ -749,6 +774,17 @@
     if (pay.length) out.push({ id: 'payment', audience: 'Compliance', title: 'Payment telemetry bypasses residency',
       text: n(nDev(pay)) + ' EU/UK devices send ' + fmt(sumOf(pay)) + ' events/day of payment-vault telemetry to the US data lake: rule R2 matches before the residency rules (R4, R5).',
       show: { view: 'sovereignty', groupBy: 'sovereignty', select: 'destination:lake-us' } });
+    // pipe health: telemetry not getting through (measured at the endpoint)
+    const stat = {}; A.forEach(function (a) { stat[a.reporting] = (stat[a.reporting] || 0) + 1; });
+    const notOk = A.length - (stat.reporting || 0);
+    if (notOk) {
+      const order = ['silent', 'offline', 'unknown', 'partial', 'delayed'], phrase = {
+        silent: 'silent while online in Landscape', offline: 'offline', unknown: 'silent (cause unknown)', partial: 'partially silent', delayed: 'delayed' };
+      const first = order.filter(function (k) { return stat[k]; })[0];
+      out.push({ id: 'reporting', audience: 'SRE', title: 'Telemetry isn’t getting through from ' + n(notOk) + ' device' + (notOk === 1 ? '' : 's'),
+        text: order.filter(function (k) { return stat[k]; }).map(function (k) { return n(stat[k]) + ' ' + phrase[k]; }).join(', ') + '.',
+        show: { view: 'reporting', groupBy: 'reporting', select: 'reporting:' + first } });
+    }
     // 3. Juju 2.9 health
     const j29 = A.filter(function (a) { return a.juju === '2.9'; }), rest = A.filter(function (a) { return a.juju !== '2.9'; });
     const avg = function (xs) { return xs.length ? Math.round(xs.reduce(function (p, a) { return p + a.healthScore; }, 0) / xs.length) : 0; };

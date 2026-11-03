@@ -375,3 +375,6 @@ button, input, select, textarea { font: inherit; color: inherit; }
 @media (max-width: 760px) {
   .p-insights__item { grid-template-columns: 1fr; }
 }
+.tooltip__report { margin-top: 3px; display: grid; grid-template-columns: auto 1fr; column-gap: 0; }
+.tooltip__report strong { display: inline; font-weight: 600; }
+.tooltip__reporthint { grid-column: 2; color: #ccc; font-size: .75rem; line-height: 1.4; max-width: 260px; }

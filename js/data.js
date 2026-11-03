@@ -142,6 +142,15 @@ window.TL = window.TL || {};
   ATTRIBUTES.neutral = { label: 'Neutral', short: 'Neutral', values: [{ id: 'all', label: 'All telemetry', color: '#4C6E87' }] };
   ATTRIBUTES.health = { label: 'Health', short: 'Health', ordinal: true, values: HEALTH_BANDS };
   // Sustainability attributes (colours from the same palette family as health)
+  // Reporting status: measured at the telemetry endpoint per device (and per snap),
+  // with Landscape's online/offline signal used to suggest a cause. Worst last.
+  ATTRIBUTES.reporting = { label: 'Reporting status', short: 'Reporting', values: [
+    { id: 'reporting', label: 'Reporting', color: '#3E786C' },
+    { id: 'delayed', label: 'Delayed', color: '#A7A880' },
+    { id: 'partial', label: 'Partially silent', color: '#BC6D4C' },
+    { id: 'silent', label: 'Silent (online in Landscape)', color: '#AC4E2A' },
+    { id: 'offline', label: 'Offline', color: '#79331A' },
+    { id: 'unknown', label: 'Silent (cause unknown)', color: '#997B73' }] };
   ATTRIBUTES.lifecycle = { label: 'Lifecycle', short: 'Lifecycle', values: [
     { id: 'service', label: 'Can stay in service', color: '#3E786C' },
     { id: 'ending', label: 'Standard support ending', color: '#BC6D4C' },
@@ -437,6 +446,8 @@ window.TL = window.TL || {};
     a.neutral = 'all';
     const h = healthAt(d, a, m);
     a.healthScore = h.score; a.healthParts = h.parts; a.health = healthBand(h.score);
+    const rep = d.report ? d.report[m] : null;
+    a.reporting = rep ? rep.status : 'reporting'; a.reportInfo = rep;
     const su = sustainAt(d, a, m);
     a.lifecycle = su.cat;
     a.energyKwh = su.kwh != null && su.measuredBy ? su.kwh : null;
@@ -517,6 +528,37 @@ window.TL = window.TL || {};
     cache[m] = facts;
     return facts;
   }
+  // Reporting status per month (own RNG, so health, flows and comments are unchanged).
+  // Factory devices are partially silent in Jun/Jul 2026: opcua-connector was crash-looping.
+  DEVICES.forEach(function (d, i) {
+    const r = mulberry32(314159 * (i + 1));
+    d.report = MONTHS.map(function (_, m) {
+      if ((d.siteTrue || d.attrs.site) === 'factory' && (m === 7 || m === 8) && d.extras.apps.indexOf('plc') >= 0) {
+        return { status: 'partial', snap: 'plc', hours: m === 7 ? 30 + Math.round(r() * 60) : 120 + Math.round(r() * 200), cause: 'crash-looping' };
+      }
+      const weak = d.health && (d.health.policy != null); // neglected devices report less reliably
+      if (r() > (weak ? 0.22 : 0.06)) return { status: 'reporting', lastMin: 1 + Math.round(r() * 9) };
+      const kind = r();
+      if (kind < 0.4) return { status: 'delayed', lagMin: 20 + Math.round(r() * 70) };
+      const hours = 6 + Math.round(r() * 66);
+      if (kind < 0.62) {
+        const apps = d.extras.apps;
+        return { status: 'partial', snap: apps[Math.floor(r() * apps.length)], hours: hours };
+      }
+      if (!d.extras.landscape) return { status: 'unknown', hours: hours };
+      return { status: r() < 0.5 ? 'silent' : 'offline', hours: hours };
+    });
+  });
+  // the current month's issues are scripted so every status has a clear example
+  const NOW_ISSUES = {
+    'par-store-02': { status: 'silent', hours: 26 },
+    'sgp-dc-01': { status: 'offline', hours: 9 },
+    'nyc-cloud-02': { status: 'unknown', hours: 41 },
+    'fra-store-01': { status: 'partial', snap: 'shelfcam', hours: 18 },
+    'sfo-cloud-02': { status: 'delayed', lagMin: 45 }
+  };
+  DEVICES.forEach(function (d) { if (NOW_ISSUES[d.id]) d.report[MONTHS.length - 1] = NOW_ISSUES[d.id]; });
+
   // Environment is a manual tag; drawn from its own RNG so other data is unchanged
   DEVICES.forEach(function (d, i) {
     const r = mulberry32(130363 * (i + 1));
@@ -603,6 +645,7 @@ window.TL = window.TL || {};
   const VIEWS = [
     { id: 'neutral', attr: 'neutral', label: 'Neutral', question: 'Where does each device’s telemetry go, and under which policy?' },
     { id: 'health', attr: 'health', label: 'Device health', question: 'How healthy is each device, and where does telemetry from unhealthy devices go?' },
+    { id: 'reporting', attr: 'reporting', label: 'Reporting status', question: 'Which devices aren’t getting telemetry through, and why?' },
     { id: 'sovereignty', attr: 'sovereignty', label: 'Telemetry residency', question: 'Which residency rule does each device’s telemetry follow, and where does it end up?' },
     { id: 'confidential', attr: 'confidential', label: 'Confidential compute', question: 'Which devices run confidential VMs, and where does their payment telemetry go?' },
     { id: 'lifecycle', attr: 'lifecycle', label: 'Lifecycle', group: 'Sustainability', question: 'Which devices can stay in service, and which would be replaced for software reasons alone?' },
@@ -620,7 +663,7 @@ window.TL = window.TL || {};
   const GROUP_BY_MENU = [
     { id: 'device', label: 'Devices (no grouping)' },
     { group: 'Manual', items: ['site', 'region', 'environment', 'sovereignty'] },
-    { group: 'Reported', items: ['health', 'lifecycle', 'energy', 'confidential', 'release', 'type'] },
+    { group: 'Reported', items: ['health', 'reporting', 'lifecycle', 'energy', 'confidential', 'release', 'type'] },
     { group: 'Infrastructure', items: ['stack', 'juju', 'jaas', 'maas', 'microcloud'] }
   ];
   const GROUP_BY_LABELS = { health: 'Device health', stack: 'Full / partial stack', juju: 'Juju', jaas: 'JAAS', maas: 'MAAS', energy: 'Energy' };

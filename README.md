@@ -32,16 +32,41 @@ It's a single page with every capability switched on:
 
 **Reset comments** at the bottom of the page restores the seeded comments.
 
+## Reporting status (pipe health)
+
+Reporting status is measured at the **telemetry endpoint**, per device and per snap. The endpoint knows which device each stream comes from. It can't see *why* a device is silent, so Landscape's online/offline signal is used to suggest a cause. Whether snapd buffers telemetry on the device isn't modelled: that's an open design question.
+
+| Status | What the endpoint sees | Tooltip hint |
+|---|---|---|
+| Reporting | Data received recently | Last received N min ago |
+| Delayed | Data arriving late | Something along the path is holding it up |
+| Partially silent | Some snaps silent, others reporting | That snap isn't publishing: check it |
+| Silent (online in Landscape) | Nothing received; Landscape says online | Check snapd or the network path |
+| Offline | Nothing received; Landscape says offline | Power or connectivity |
+| Silent (cause unknown) | Nothing received; no landscape-client | Can't cross-check |
+
+**Where it appears:**
+- a **Reporting status** view and group-by (under Reported);
+- a status line with its cause hint in every device tooltip;
+- worst-first ranking in the top 20;
+- an **SRE** insight: "Telemetry isn't getting through from N devices".
+
+**The data:**
+- **The latest month is scripted** so each status has an example: `par-store-02` silent, `sgp-dc-01` offline, `nyc-cloud-02` cause unknown, `fra-store-01` with `shelf-vision` silent, `sfo-cloud-02` delayed.
+- **It follows the incident:** in June and July, factory devices are partially silent because `opcua-connector` was crash-looping.
+- **Other data is unchanged:** reporting status is generated from its own randomness, so health, flows and volumes are as before.
+
 ## Data insights
 
 A strip under the page title shows **"N data insights available"**, collapsed by default. The insights are calculated from the whole fleet for the month on the timeline, so the count varies by fleet and month.
 
-When expanded, each insight shows an audience badge (Compliance, Platform or Sustainability, using the Vanilla badge pattern), one line of evidence, and a **Show me** button. The button sets the view and group-by that make the insight visible, clears filters, and selects the node so its comment thread opens.
+When expanded, each insight shows an audience badge (Compliance, SRE, Platform or Sustainability, using the Vanilla badge pattern), one line of evidence, and a **Show me** button. The button sets the view and group-by that make the insight visible, clears filters, and selects the node so its comment thread opens.
 
 | Insight | Badge | Show me |
 |---|---|---|
 | Residency rules switch off PII redaction: R4/R5 match before R6 for `pos-terminal` and `shelf-vision` | Compliance | Telemetry residency, `pos-terminal` |
 | Payment telemetry bypasses residency: R2 matches before R4/R5 | Compliance | Telemetry residency, US data lake |
+| Telemetry isn't getting through from N devices | SRE | Reporting status by status, the worst status present |
 | Juju 2.9 devices are the least healthy | Platform | Device health by Juju, Juju 2.9 |
 | Devices could be replaced for software reasons alone | Sustainability | Lifecycle, support ending |
 | Idle devices are still powered on (measured devices only) | Sustainability | Energy by Site, the site with the most idle energy |

@@ -34,7 +34,7 @@ Prototype of the **Insights** page (Telemetry product): a single-page Sankey. Se
 ## Sankey rules agreed with the user
 - Columns are fixed: **Device → Publisher → Policy → Destination**. Only column 1 changes.
 - A **view** colours devices (and their flows end to end) by one attribute, e.g. Juju version. Views never change columns.
-- View selector is a dropdown starting on **Neutral** (one flow colour): Neutral · Device health · Telemetry residency · Confidential compute · Sustainability ▸ (Lifecycle, Energy) · Canonical infrastructure ▸ (Full/partial stack, Juju, JAAS, MAAS, MicroCloud).
+- View selector is a dropdown starting on **Neutral** (one flow colour): Neutral · Device health · Reporting status · Telemetry residency · Confidential compute · Sustainability ▸ (Lifecycle, Energy) · Canonical infrastructure ▸ (Full/partial stack, Juju, JAAS, MAAS, MicroCloud).
 - No intro/description text and no "synthetic data" note under the page header.
 - Group-by dropdown is categorised by attribute provenance: Manual (Site, Region, Environment, Telemetry residency) · Reported (Device health, Lifecycle, Energy, Confidential compute, Ubuntu release, Device type) · Infrastructure (Full/partial stack, Juju, JAAS, MAAS, MicroCloud). Site is a manually assigned label, not reported by devices.
 - Manual keys (Site, Environment) can be Unassigned; a pinned device tooltip offers an "Assign" link that opens a modal with an autocomplete over existing values (incl. near matches) that also allows creating a new value, e.g. "factory2" (Site suggested from hostname). New values become real values for the key. Saved in localStorage; "Reset assignments" footer link appears once something is assigned.
@@ -43,9 +43,15 @@ Prototype of the **Insights** page (Telemetry product): a single-page Sankey. Se
 - No snapd / telemetry endpoint markers in the chart (removed at the user's request).
 - Columns top-aligned (top stream horizontal, others rise into it); flows fairly transparent.
 
+## Reporting status (pipe health)
+- Measured at the telemetry endpoint per device and per snap (endpoint knows the device; it can't see why). Cause hinted via Landscape online/offline cross-check (only for devices with landscape-client).
+- Statuses: Reporting · Delayed · Partially silent (some snaps) · Silent (online in Landscape) · Offline · Silent (cause unknown). View + Reported group-by + tooltip line with hint + SRE insight.
+- Do NOT claim snapd queues/buffers telemetry: that's an unconfirmed design question for the snapd/telemetry engineers.
+- Latest month scripted (par-store-02, sgp-dc-01, nyc-cloud-02, fra-store-01, sfo-cloud-02); factory devices partially silent (opcua-connector) in Jun/Jul 2026.
+
 ## Data insights
-- Strip under the header, collapsed by default with heading "N data insights available"; computed from the whole fleet for the timeline month (6 on mid, 2 on hobby).
-- Each insight: Vanilla-style badge for audience (Compliance / Platform / Sustainability), title, one-line evidence, "Show me" (sets view + group-by, clears filters, selects node so its comments open).
+- Strip under the header, collapsed by default with heading "N data insights available"; computed from the whole fleet for the timeline month (7 on mid, 2 on hobby).
+- Each insight: Vanilla-style badge for audience (Compliance / SRE / Platform / Sustainability), title, one-line evidence, "Show me" (sets view + group-by, clears filters, selects node so its comments open).
 - Compliance insights are framed as rule conflicts (R4/R5 before R6 redaction; R2 before residency), not zone-crossing flags.
 
 ## Fleet size ladder
