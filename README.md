@@ -9,10 +9,10 @@ A dependency-free prototype of the **Insights** page for Ubuntu telemetry. It sh
 
 **Architecture:**
 1. Every snap on a device hands its telemetry to **snapd**.
-2. snapd enforces naming and on-device rules, then merges all snaps into **one stream** to the **telemetry endpoint**.
-3. The endpoint splits the stream back out by snap, applies routing policy and forwards each flow to its destination.
+2. snapd enforces naming, then merges all snaps into **one stream** to the **telemetry endpoint**.
+3. The telemetry backend splits the stream back out by snap, applies the policy rules and forwards each flow to its destination. No rules run on the device.
 
-snapd and the endpoint aren't drawn in the chart. Every flow passes through them, so they'd add no information. Each policy rule records where it's applied: `at: 'snapd'` (on the device) or `at: 'endpoint'`.
+snapd and the endpoint aren't drawn in the chart. Every flow passes through them, so they'd add no information. All policy rules are applied in the backend after the data is received.
 
 **Only column 1 changes.**
 - With **no group-by**, column 1 has one node per **device**.
@@ -41,7 +41,7 @@ Reporting status is measured at the **telemetry endpoint**, per device and per s
 | Reporting | Data received recently | Last received N min ago |
 | Delayed | Data arriving late | Something along the path is holding it up |
 | Partially silent | Some snaps silent, others reporting | That snap isn't publishing: check it |
-| Silent (online in Landscape) | Nothing received; Landscape says online | Check snapd or the network path |
+| Silent (online in Landscape) | Nothing received; Landscape says online | Check the snap services or the network path |
 | Offline | Nothing received; Landscape says offline | Power or connectivity |
 | Silent (cause unknown) | Nothing received; no landscape-client | Can't cross-check |
 
@@ -182,7 +182,7 @@ The fleet is modelled on a large retailer or manufacturer, spread across retail 
 | Any site | `landscape-client`, plus `juju`, `maas`, `microcloud` where used. `payment-vault` runs on confidential VMs |
 
 Policy rules route these by sensitivity:
-- camera and till data get PII redaction in snapd (R6),
+- camera and till data get PII redaction (R6),
 - factory and sensor data follow the OT policy to observability and ITSM (R7),
 - payment data is PCI scope, attested only (R2).
 
@@ -299,7 +299,7 @@ Group by is categorised by where each attribute comes from:
 ```
 ATTRIBUTES    { attr → { label, values: [{ id, label, color? }] } }   // device vocabulary; no colour = neutral
 PUBLISHERS / POLICIES / DESTINATIONS                                 // publishers are snaps (snap names)
-ROUTING       [{ id, at: 'snapd'|'endpoint', when: {attr|publisher: value|[values]}, policy, to: [[destination, share]] }]
+ROUTING       [{ id, at: 'endpoint', when: {attr|publisher: value|[values]}, policy, to: [[destination, share]] }]
               // ordered, first match wins — auditable and easy to change
 DEVICES       [{ id, attrs, extras, onboarded, scale, growth,
                  changes: [{ month, attrs, note }] }]                 // upgrades, migrations, policy moves

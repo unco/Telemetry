@@ -744,7 +744,7 @@
       reporting: 'Last received ' + (info.lastMin || 2) + ' min ago',
       delayed: 'Arriving about ' + info.lagMin + ' min late: data is getting through, but something along the path is holding it up.',
       partial: snap + ' silent for ' + hoursText(info.hours) + (info.cause ? ' (' + info.cause + ')' : '') + ' while the device’s other snaps report. Check that snap.',
-      silent: 'Silent for ' + hoursText(info.hours) + '. Landscape reports it online, so check snapd or the network path to the endpoint.',
+      silent: 'Silent for ' + hoursText(info.hours) + '. Landscape reports it online, so check the snap services or the device’s network path.',
       offline: 'Offline for ' + hoursText(info.hours) + '. Landscape reports it offline: power or connectivity.',
       unknown: 'Silent for ' + hoursText(info.hours) + '. Cause unknown: no landscape-client to cross-check.'
     }[info.status];

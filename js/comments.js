@@ -20,7 +20,7 @@
  */
 (function (TL) {
   'use strict';
-  const KEY = 'tl.insights.comments.v14';
+  const KEY = 'tl.insights.comments.v15';
 
   const SEED = [
     { anchor: { view: 'sovereignty', groupBy: 'sovereignty', node: 'publisher:pos', period: null },
@@ -65,7 +65,7 @@
     { anchor: { view: 'jaas', groupBy: 'jaas', node: 'jaas:jaas', period: '2026-04' },
       author: 'Platform engineering', body: 'We started consolidating self-hosted controllers into JAAS in April.' },
     { anchor: { view: 'maas', groupBy: 'site', node: 'publisher:shelfcam', period: null },
-      author: 'Data protection officer', body: 'shelf-vision is camera-derived. Confirm snapd’s PII redaction (R6) strips faces before anything leaves the store.' },
+      author: 'Data protection officer', body: 'shelf-vision is camera-derived. Confirm PII redaction (R6) strips faces before anything reaches the US data lake.' },
     { anchor: { view: 'microcloud', groupBy: 'site', node: 'site:store', period: null },
       author: 'Store systems', body: 'MicroCloud is being rolled out store by store to replace the old back-office servers.' },
     { anchor: { view: 'sovereignty', groupBy: 'sovereignty', node: 'destination:lake-us', period: null },

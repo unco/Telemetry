@@ -7,8 +7,9 @@
  *                       (snap)   ↑ snapd     ↑ telemetry endpoint
  *
  * Every snap hands its telemetry to snapd, which enforces naming and
- * on-device rules and multiplexes all snaps into a single stream to the
- * telemetry endpoint. The endpoint demultiplexes, routes and forwards.
+ * multiplexes all snaps into a single stream to the telemetry endpoint.
+ * The telemetry backend applies the policy rules once it has received the
+ * data: it demultiplexes, routes and forwards.
  *
  * Column 1 is the only thing that changes:
  *   - no group-by  → one node per DEVICE
@@ -178,9 +179,9 @@ window.TL = window.TL || {};
 
   // ---- Pipeline vocabularies -----------------------------------------
   // Publishers are snaps. Every snap hands its telemetry to snapd on the
-  // device; snapd enforces naming and on-device rules, multiplexes all
-  // snaps into one stream and sends it to the telemetry endpoint, which
-  // demultiplexes, routes and forwards. Labels are the snap names that
+  // device; snapd enforces naming, multiplexes all snaps into one stream
+  // and sends it to the telemetry endpoint. Rules are applied in the
+  // backend once the data is received: it demultiplexes, routes and forwards. Labels are the snap names that
   // snapd enforces.
   // A mix of the customer's own applications, partner software and a few
   // Canonical infrastructure snaps, as a large retailer / manufacturer might
@@ -233,15 +234,14 @@ window.TL = window.TL || {};
 
   // ---- Policy rules (ordered, first match wins) -----------------------
   // `when` matches device attributes and/or publisher; `to` lists
-  // destinations with shares. `at` records where the rule is applied:
-  //   'snapd'    – on the device, before the stream leaves it
-  //   'endpoint' – at the telemetry endpoint, after demultiplexing
+  // destinations with shares. All rules are applied in the telemetry
+  // backend once it has received the data (none run on the device).
   const ROUTING = [
     { id: 'R2', at: 'endpoint', when: { publisher: 'payment' }, policy: 'attested', to: [['siem', 0.6], ['archive', 0.25], ['lake-us', 0.15]] },
     { id: 'R3', at: 'endpoint', when: { publisher: 'landscape' }, policy: 'local', to: [['landscape', 0.8], ['cmdb', 0.2]] },
     { id: 'R4', at: 'endpoint', when: { sovereignty: 'eu' }, policy: 'eu-res', to: [['lake-eu', 0.75], ['archive', 0.25]] },
     { id: 'R5', at: 'endpoint', when: { sovereignty: 'uk' }, policy: 'uk-res', to: [['lake-uk', 0.75], ['archive', 0.25]] },
-    { id: 'R6', at: 'snapd', when: { publisher: ['pos', 'shelfcam'] }, policy: 'redact', to: [['lake-us', 0.6], ['observability', 0.25], ['siem', 0.15]] },
+    { id: 'R6', at: 'endpoint', when: { publisher: ['pos', 'shelfcam'] }, policy: 'redact', to: [['lake-us', 0.6], ['observability', 0.25], ['siem', 0.15]] },
     { id: 'R7', at: 'endpoint', when: { publisher: ['plc', 'predmaint', 'coldchain'] }, policy: 'ot', to: [['observability', 0.45], ['itsm', 0.35], ['lake-us', 0.2]] },
     { id: 'R9', at: 'endpoint', when: { publisher: ['homeauto', 'media', 'filesync', 'dns'] }, policy: 'standard', to: [['observability', 1]] },
     { id: 'R8', at: 'endpoint', when: {}, policy: 'standard', to: [['observability', 0.5], ['cmdb', 0.25], ['siem', 0.1], ['lake-us', 0.15]] }

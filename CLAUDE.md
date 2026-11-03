@@ -8,11 +8,11 @@ Prototype of the **Insights** page (Telemetry product): a single-page Sankey. Se
 
 ## Telemetry architecture (as described by the product owner)
 - Every snap on a device sends its telemetry to **snapd**.
-- snapd enforces rules and naming, and multiplexes all snaps into a **single stream** to the **telemetry endpoint**.
-- The telemetry endpoint demultiplexes, routes and forwards to destinations.
+- snapd enforces naming and multiplexes all snaps into a **single stream** to the **telemetry endpoint**.
+- Rules are **not** enforced on the device: the telemetry backend applies them once it has received the data, then demultiplexes, routes and forwards to destinations (user correction).
 
 ## Terminology
-- Do **not** describe snapd as a "gateway" — that term is not to be used. Describe what it does (enforces rules and naming, multiplexes into one stream).
+- Do **not** describe snapd as a "gateway" — that term is not to be used. Describe what it does (enforces naming, multiplexes into one stream).
 - Publishers are snaps; label them with their snap names.
 - "Sovereignty" here means **telemetry residency** only (which residency rule a device's telemetry follows), not sovereignty of the device or its workloads. Use "Telemetry residency" in the UI.
 - Publishers should read as the customer's fleet (store, factory, DC, data-centre and cloud applications such as pos-terminal, opcua-connector, order-service), with Canonical snaps (juju, maas, microcloud, landscape-client) as a minority — avoid a "for us by us" feel. Seeded comments are written by the customer's teams, not Canonical's.
