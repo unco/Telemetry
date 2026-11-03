@@ -6,8 +6,9 @@
  *      [ column 1 ]  →  Publisher  →  Policy  →  Destination
  *                       (snap)   ↑ snapd     ↑ telemetry endpoint
  *
- * Every snap hands its telemetry to snapd, which enforces naming and
- * multiplexes all snaps into a single stream to the telemetry endpoint.
+ * Every snap hands its telemetry to snapd, which tags each event with the
+ * snap that sent it and multiplexes all snaps into a single stream to the
+ * telemetry endpoint.
  * The telemetry backend applies the policy rules once it has received the
  * data: it demultiplexes, routes and forwards.
  *
@@ -179,10 +180,10 @@ window.TL = window.TL || {};
 
   // ---- Pipeline vocabularies -----------------------------------------
   // Publishers are snaps. Every snap hands its telemetry to snapd on the
-  // device; snapd enforces naming, multiplexes all snaps into one stream
-  // and sends it to the telemetry endpoint. Rules are applied in the
-  // backend once the data is received: it demultiplexes, routes and forwards. Labels are the snap names that
-  // snapd enforces.
+  // device; snapd tags each event with the snap that sent it, multiplexes
+  // all snaps into one stream and sends it to the telemetry endpoint. Rules
+  // are applied in the backend once the data is received: it demultiplexes,
+  // routes and forwards. Labels are the snap names snapd tags events with.
   // A mix of the customer's own applications, partner software and a few
   // Canonical infrastructure snaps, as a large retailer / manufacturer might
   // run across stores, factories, distribution centres, data centres and cloud.

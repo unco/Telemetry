@@ -9,7 +9,7 @@ A dependency-free prototype of the **Insights** page for Ubuntu telemetry. It sh
 
 **Architecture:**
 1. Every snap on a device hands its telemetry to **snapd**.
-2. snapd enforces naming, then merges all snaps into **one stream** to the **telemetry endpoint**.
+2. snapd tags each event with the snap that sent it, then merges all snaps into **one stream** to the **telemetry endpoint**.
 3. The telemetry backend splits the stream back out by snap, applies the policy rules and forwards each flow to its destination. No rules run on the device.
 
 snapd and the endpoint aren't drawn in the chart. Every flow passes through them, so they'd add no information. All policy rules are applied in the backend after the data is received.
