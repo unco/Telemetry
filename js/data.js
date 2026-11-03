@@ -202,6 +202,7 @@ window.TL = window.TL || {};
     { id: 'juju', label: 'juju', canonical: true, note: 'Application operations' },
     { id: 'maas', label: 'maas', canonical: true, note: 'Bare-metal provisioning' },
     { id: 'microcloud', label: 'microcloud', canonical: true, note: 'Edge/private cloud cluster' },
+    { id: 'mcp', label: 'warty-server-mcp', canonical: true, note: 'MCP server that understands the fleet behind it and answers Warty Ubuntu AI' },
     // home-lab snaps (hobby fleet)
     { id: 'homeauto', label: 'home-automation', note: 'Home automation hub' },
     { id: 'media', label: 'media-server', note: 'Media library and streaming' },
@@ -214,6 +215,7 @@ window.TL = window.TL || {};
     { id: 'uk-res', label: 'UK data residency' },
     { id: 'attested', label: 'PCI scope · attested only' },
     { id: 'ot', label: 'OT safety & maintenance' },
+    { id: 'ai-audit', label: 'AI access audit' },
     { id: 'local', label: 'On-prem only' },
     { id: 'schema', label: 'Schema validation' },
     { id: 'shaping', label: 'Shaping (rate limits)' }] };
@@ -240,6 +242,8 @@ window.TL = window.TL || {};
   const ROUTING = [
     { id: 'R2', at: 'endpoint', when: { publisher: 'payment' }, policy: 'attested', to: [['siem', 0.6], ['archive', 0.25], ['lake-us', 0.15]] },
     { id: 'R3', at: 'endpoint', when: { publisher: 'landscape' }, policy: 'local', to: [['landscape', 0.8], ['cmdb', 0.2]] },
+    // every question Warty Ubuntu AI asks through the MCP server is kept as an audit trail
+    { id: 'R10', at: 'endpoint', when: { publisher: 'mcp' }, policy: 'ai-audit', to: [['siem', 0.5], ['observability', 0.3], ['archive', 0.2]] },
     { id: 'R4', at: 'endpoint', when: { sovereignty: 'eu' }, policy: 'eu-res', to: [['lake-eu', 0.75], ['archive', 0.25]] },
     { id: 'R5', at: 'endpoint', when: { sovereignty: 'uk' }, policy: 'uk-res', to: [['lake-uk', 0.75], ['archive', 0.25]] },
     { id: 'R6', at: 'endpoint', when: { publisher: ['pos', 'shelfcam'] }, policy: 'redact', to: [['lake-us', 0.6], ['observability', 0.25], ['siem', 0.15]] },
@@ -284,10 +288,10 @@ window.TL = window.TL || {};
   const SHAPING_DROP = { shelfcam: 0.06, predmaint: 0.05, plc: 0.03, pos: 0.01, order: 0.015, dns: 0.08 };
   // typical event size per snap, in bytes (for data volume)
   const EVENT_BYTES = { pos: 850, shelfcam: 2600, signage: 320, coldchain: 220, plc: 420, predmaint: 1300, inventory: 650,
-    order: 950, erp: 1600, payment: 700, landscape: 1200, juju: 520, maas: 430, microcloud: 470,
+    order: 950, erp: 1600, payment: 700, landscape: 1200, juju: 520, maas: 430, microcloud: 470, mcp: 900,
     homeauto: 300, media: 520, filesync: 410, dns: 160 };
   const BASE_RATE = { pos: 900, shelfcam: 1400, signage: 120, coldchain: 300, plc: 1100, predmaint: 700,
-    inventory: 800, order: 1000, erp: 500, payment: 300, landscape: 350, juju: 350, maas: 250, microcloud: 300,
+    inventory: 800, order: 1000, erp: 500, payment: 300, landscape: 350, juju: 350, maas: 250, microcloud: 300, mcp: 420,
     homeauto: 600, media: 250, filesync: 400, dns: 900 };
   const SITE_BY_TYPE = {
     edge: { store: 60, factory: 40 }, metal: { dc: 40, factory: 35, datacentre: 25 },
@@ -476,6 +480,7 @@ window.TL = window.TL || {};
     if (a.juju !== 'none') out.push('juju');
     if (a.maas !== 'none') out.push('maas');
     if (a.microcloud === 'member') out.push('microcloud');
+    if (a.mcp === 'yes') out.push('mcp');
     return out;
   }
 
@@ -502,6 +507,12 @@ window.TL = window.TL || {};
   EXTRAS.forEach(function (d, j) { initHealth(d, DEVICES.length + j); });
   EXTRAS.forEach(nameDevice);
   Array.prototype.push.apply(DEVICES, EXTRAS);
+  // warty-server-mcp: an MCP server piloted from Sep 2026 on one full-stack data-centre host
+  // (Juju, MicroCloud). It reads the fleet behind it and answers Warty Ubuntu AI; its own
+  // telemetry is the tool calls it serves.
+  DEVICES.filter(function (d) { return d.id === 'nyc-dc-01'; }).forEach(function (d) {
+    d.changes.push({ month: 10, attrs: { mcp: 'yes' }, note: 'Installed warty-server-mcp (pilot)' });
+  });
 
   if (FLEET === 'hobby') ATTRIBUTES.site.values.splice(ATTRIBUTES.site.values.length - 1, 0, { id: 'home', label: 'Home lab' });
   const DIMENSIONS = {

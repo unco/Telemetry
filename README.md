@@ -184,7 +184,10 @@ The fleet is modelled on a large retailer or manufacturer, spread across retail 
 Policy rules route these by sensitivity:
 - camera and till data get PII redaction (R6),
 - factory and sensor data follow the OT policy to observability and ITSM (R7),
-- payment data is PCI scope, attested only (R2).
+- payment data is PCI scope, attested only (R2),
+- `warty-server-mcp` tool calls are kept as an AI access audit trail in the SIEM, observability and the archive (R10).
+
+**warty-server-mcp** is an MCP server piloted on `nyc-dc-01` (a full-stack data-centre host: Juju 4.1, MicroCloud) from September 2026. It understands the fleet behind it and answers questions from Warty Ubuntu AI; its own telemetry is the tool calls it serves. A Platform engineering comment on the publisher explains the pilot.
 
 ## Health
 

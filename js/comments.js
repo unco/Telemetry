@@ -20,9 +20,11 @@
  */
 (function (TL) {
   'use strict';
-  const KEY = 'tl.insights.comments.v15';
+  const KEY = 'tl.insights.comments.v16';
 
   const SEED = [
+    { anchor: { view: 'neutral', groupBy: 'device', node: 'publisher:mcp', period: '2026-09' }, createdAt: '2026-09-24T10:00:00Z',
+      author: 'Platform engineering', body: 'Piloting warty-server-mcp on nyc-dc-01. Warty Ubuntu AI can now answer questions about the fleet behind it (what runs where, what is unhealthy, what changed). Every tool call goes to the SIEM and the archive under R10, so we can audit what the assistant looked at.' },
     { anchor: { view: 'sovereignty', groupBy: 'sovereignty', node: 'publisher:pos', period: null },
       author: 'Data protection officer', body: 'Till data from EU and UK stores matches the residency rules (R4, R5) first, so PII redaction (R6) never runs on it. Either move redaction ahead of residency, or redact inside R4 and R5.' },
     { anchor: { view: 'lifecycle', groupBy: 'device', node: 'device:ldn-plant-04', period: null },

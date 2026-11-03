@@ -80,6 +80,10 @@ Prototype of the **Insights** page (Telemetry product): a single-page Sankey. Se
 - One kept window: 16 Jun 2026 22:00–17 Jun 22:00 UTC, triggered by the opcua-connector restarts alert (03:45), scope opcua-connector on factory devices, expires 17 Jun 2027. Diamond on June + "Detail kept" line on the monthly timeline → close-up dialog (`js/closeup.js`) with hourly Sankey, KPIs, numbered events (23:00 r214 stable, 03:45 alert, 08:42 Ana, 09:15 Tom's hold).
 - nyc-plant-02 and sfo-plant-01 were caught by the hold (never ran r214): no factory incident penalty or partial reporting for them in Jun/Jul.
 
+## warty-server-mcp
+- Canonical MCP server snap (publisher `mcp`, label `warty-server-mcp`) piloted on nyc-dc-01 from Sep 2026 (change note in tooltip). It understands the fleet behind it and gives useful info to **Warty Ubuntu AI**.
+- Its telemetry = tool calls served, routed by R10 "AI access audit" to SIEM 50% / observability 30% / archive 20%. Seeded Platform engineering comment on publisher:mcp (Neutral · devices · Sep 2026).
+
 ## Other points from Mark's review
 - Point 6: in the final app, rules link to the individual rule's config in the same Telemetry app (no change to the prototype).
 - Point 7: this page is for people responsible for governing data flow; larger orgs have more specialised roles. A role-based focus belongs on the Overview/home page, not here.
