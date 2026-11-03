@@ -169,6 +169,7 @@
    *   palette: [{ id, color|null }]   – view values in stacking order
    *   isolate: valueId|null           – colour only this value
    *   focusId, selectedId, commentCounts, showCommentBadges, deltas
+   *   unit: rate shown after node values (default '/day')
    * }
    */
   function render(svg, L, opts) {
@@ -235,7 +236,7 @@
       parts.push('<text class="sk-label' + (small ? ' sk-label--small' : '') + '" x="' + lx + '" y="' + (showMeta ? cy - 2 : cy + 4) + '" text-anchor="' + anchor + '">');
       parts.push(esc(v.label) + '</text>');
       if (showMeta) {
-        parts.push('<text class="sk-meta" x="' + lx + '" y="' + (cy + 12) + '" text-anchor="' + anchor + '">' + fmt(n.value) + '/day');
+        parts.push('<text class="sk-meta" x="' + lx + '" y="' + (cy + 12) + '" text-anchor="' + anchor + '">' + fmt(n.value) + (opts.unit || '/day'));
         if (opts.deltas && opts.deltas[n.id] != null && isFinite(opts.deltas[n.id])) {
           const d = opts.deltas[n.id];
           const cl = d > 0.5 ? 'up' : d < -0.5 ? 'down' : 'flat';

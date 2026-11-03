@@ -20,7 +20,7 @@
  */
 (function (TL) {
   'use strict';
-  const KEY = 'tl.insights.comments.v13';
+  const KEY = 'tl.insights.comments.v14';
 
   const SEED = [
     { anchor: { view: 'sovereignty', groupBy: 'sovereignty', node: 'publisher:pos', period: null },
@@ -37,19 +37,19 @@
       author: 'Infrastructure ops · NA', body: 'Upgraded from Juju 2.9 to 3.6 this month: health went from 68 to 93 with no other changes. Using this as the case for prioritising the remaining 2.9 upgrades.' },
     // SRE incident thread (Health view, grouped by Site, on Factory floor)
     { anchor: { view: 'health', groupBy: 'site', node: 'site:factory', period: '2026-06' }, createdAt: '2026-06-17T08:42:00Z',
-      author: 'Ana Ribeiro · SRE', body: 'Factory health is falling fast: stability is near zero on most plants and opcua-connector telemetry has halved. Started right after opcua-connector r214 hit stable on Monday. Paging plant IT.' },
+      author: 'Ana Ribeiro · SRE', body: 'Factory health is falling fast: stability is near zero on most plants and opcua-connector telemetry has halved. Started overnight, right after opcua-connector r214 hit stable. Paging plant IT.' },
     { anchor: { view: 'health', groupBy: 'site', node: 'site:factory', period: '2026-06' }, createdAt: '2026-06-17T09:15:00Z',
-      author: 'Tom Okafor · SRE', body: 'Confirmed: r214 segfaults on the older PLC firmware, so it’s crash-looping on ldn and sgp plants first. I’ve put a fleet-wide snap refresh hold in place until we know the blast radius.' },
+      author: 'Tom Okafor · SRE', body: 'Confirmed: r214 segfaults on the older PLC firmware, so it’s crash-looping on ldn and sgp plants first. I’ve put a fleet-wide snap refresh hold in place until we know the blast radius; nyc-plant-02 and sfo-plant-01 hadn’t refreshed yet, so they stay on r212.' },
     { anchor: { view: 'health', groupBy: 'site', node: 'site:factory', period: '2026-07' }, createdAt: '2026-07-08T13:30:00Z',
-      author: 'Ana Ribeiro · SRE', body: 'The hold is hurting now. Snap refresh and patch currency are sliding on every site, not just factories: fleet average is down to 54 from 69. Factories are at 38. We can’t keep a blanket hold much longer.' },
+      author: 'Ana Ribeiro · SRE', body: 'The hold is hurting now. Snap refresh and patch currency are sliding on every site, not just factories: fleet average is down to 55 from 69. Factories are at 41. We can’t keep a blanket hold much longer.' },
     { anchor: { view: 'health', groupBy: 'site', node: 'site:factory', period: '2026-07' }, createdAt: '2026-07-08T14:05:00Z',
       author: 'Tom Okafor · SRE', body: 'Agreed. Plan: pin factories back to r212 with a channel override, then lift the hold for everything except opcua-connector. Rolling back fra-plant-01 first as a canary.' },
     { anchor: { view: 'health', groupBy: 'site', node: 'site:factory', period: '2026-08' }, createdAt: '2026-08-04T10:20:00Z',
-      author: 'Tom Okafor · SRE', body: 'Rollback to r212 is done on all plants. Stability is back above 70 and the reporting gaps have closed. Hold lifted for every other snap.' },
+      author: 'Tom Okafor · SRE', body: 'Rollback to r212 is done on every plant that took r214. Stability is back above 70 and the reporting gaps have closed. Hold lifted for every other snap.' },
     { anchor: { view: 'health', groupBy: 'site', node: 'site:factory', period: '2026-08' }, createdAt: '2026-08-05T09:00:00Z',
       author: 'Ana Ribeiro · SRE', body: 'Vendor has a fix in r216 on the candidate channel. Running it on fra-plant-01 for two weeks before we promote.' },
     { anchor: { view: 'health', groupBy: 'site', node: 'site:factory', period: '2026-09' }, createdAt: '2026-09-11T15:40:00Z',
-      author: 'Ana Ribeiro · SRE', body: 'r216 has been clean on the canary for two weeks; promoted to all plants. Factory health is back to 66, the same as before the incident.' },
+      author: 'Ana Ribeiro · SRE', body: 'r216 has been clean on the canary for two weeks; promoted to all plants. Factory health is back to 67, the same as before the incident.' },
     { anchor: { view: 'health', groupBy: 'site', node: 'site:factory', period: '2026-09' }, createdAt: '2026-09-11T16:02:00Z',
       author: 'Tom Okafor · SRE', body: 'Follow-up from the review: opcua-connector refreshes now go to one canary plant first, with a 7-day soak before the rest. Closing this out.' },
     { anchor: { view: 'health', groupBy: 'health', node: 'health:31-40', period: '2026-07' }, createdAt: '2026-07-08T13:45:00Z',

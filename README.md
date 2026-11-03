@@ -220,14 +220,31 @@ The data includes a fleet incident to show change over time. All of it is define
 
 | Month | What happens | Fleet avg | Factories |
 |---|---|---|---|
-| Jun | `opcua-connector` r214 crash-loops on factory devices; their telemetry drops by more than half | 66 | 53 |
-| Jul | A fleet-wide snap refresh hold contains it, but snap and patch currency slide everywhere | **54** | **38** |
+| Jun | `opcua-connector` r214 crash-loops on factory devices; their telemetry drops by more than half | 67 | 56 |
+| Jul | A fleet-wide snap refresh hold contains it, but snap and patch currency slide everywhere | **55** | **41** |
 | Aug | Factories are rolled back to r212; the hold is lifted for everything else | 64 | 56 |
-| Sep | Fixed r216 ships after a canary soak; health is back to pre-incident levels | 71 | 66 |
+| Sep | Fixed r216 ships after a canary soak; health is back to pre-incident levels | 71 | 67 |
 
-Before the incident, the fleet average was about 69 and factories averaged about 65.
+Before the incident, the fleet average was about 69 and factories averaged about 67. Two plants (nyc-plant-02, sfo-plant-01) hadn't refreshed when the hold went in, so they never ran r214: no crash loop and no reporting gap for them in Jun/Jul.
 
 Two SREs discuss and resolve the incident in a comment thread. To find it, choose **Device health** and group by **Site**, then open **Factory floor**. The thread's comments show as timeline markers from June to September.
+
+### Kept detail: the incident close-up (hour by hour)
+
+Monthly data can't show a crash loop, which happens over minutes and hours. The model for retention:
+
+- Fine-grained telemetry is kept for a short **rolling window** (72 hours here), then summarised (daily).
+- A **trigger** keeps a window of detail for longer: an alert, a change event (a refresh, a rollback), a manual pin by an engineer, or a legal hold.
+- Each kept window is **scoped narrowly** (here: one snap on the factory devices), shows its **reason**, and **expires** (here: 12 months, for the incident review).
+- Because the rolling window still holds the hours before the trigger, a kept window can start before the alert fired.
+
+In the prototype, one window is kept (`CLOSEUP` in `js/data.js`): 16 Jun 2026 22:00 – 17 Jun 22:00 UTC, triggered by the alert on `opcua-connector` restarts. On the monthly timeline it shows as a diamond on June plus a "Detail kept" line under the timeline with reason and expiry; **Open hour by hour** opens the close-up (`js/closeup.js`):
+
+- The same Sankey (Device → Publisher → Policy → Destination), limited to the kept scope, one hour at a time, coloured by state: Running r212 · Crash-looping on r214 · Refresh held (still on r212). Hours interpolate during playback. Fleets over 30 devices in scope show regions in column 1.
+- KPIs per hour: crash-looping devices and restarts, devices held, opcua-connector events/h against the hour before r214, and schema drops.
+- Numbered events on the hour scrubber and listed below it: 23:00 r214 promoted to stable · 03:45 alert fires · 08:42 Ana's comment · 09:15 Tom's refresh hold.
+- Plants pick up r214 one by one (Singapore and London first, as Tom's comment says); the hold catches nyc-plant-02 and sfo-plant-01. Device tooltips give the refresh time and restarts.
+- A crash-looping connector sends ~15% of its usual events, and ~40% of those fail schema validation.
 
 ## Sustainability (views and device tooltip)
 
@@ -313,6 +330,7 @@ css/app.css       Canonical/Vanilla-style app styling
 js/data.js        attributes, pipeline, routing rules, devices, views
 js/sankey.js      aggregate · interpolate · layout · SVG render
 js/comments.js    comment store
+js/closeup.js     incident close-up (kept hour-by-hour detail)
 js/app.js         page controller (capability flags in FEATURES)
 docs/             screenshots
 ```
@@ -322,3 +340,5 @@ docs/             screenshots
 | | |
 |---|---|
 | ![Neutral view, devices](docs/page.png) | ![Health incident, July 2026](docs/health-incident.png) |
+
+![Kept detail: hour-by-hour close-up of the r214 crash loop](docs/closeup.png)

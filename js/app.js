@@ -562,7 +562,12 @@
           '<div class="p-timeline__ticks">' + TL.MONTHS.map(function (m, i) {
             return '<button type="button" class="p-timeline__tick" data-month="' + i + '" style="left:' + (i / LAST * 100) + '%">' + TL.monthLabel(m, true) + '</button>';
           }).join('') + '</div>' +
-        '</div>';
+          // a window of hour-by-hour detail kept by a trigger (opens the close-up)
+          (TL.closeup ? '<button type="button" class="p-timeline__keptmark" data-closeup="1" style="left:' + (TL.closeup.month / LAST * 100) + '%" title="' + esc(TL.closeup.summary()) + '" aria-label="' + esc(TL.closeup.summary()) + '"></button>' : '') +
+        '</div>' +
+        (TL.closeup ? '<div class="p-timeline__kept" id="tl-kept"><span class="p-badge p-badge--caution">Detail kept</span>' +
+          '<span class="p-timeline__kept-text">' + esc(TL.closeup.summary().replace(/^Detail kept · /, '')) + '</span>' +
+          '<button type="button" class="p-button p-button--small" data-closeup="1">Open hour by hour</button></div>' : '');
       $('tl-range').addEventListener('input', function (e) { stopPlay(); state.month = +e.target.value; render(); });
       $('tl-range').addEventListener('change', function (e) { state.month = Math.round(+e.target.value); buildHighlight(); buildGroupFilter(); render(); });
       $('tl-play').addEventListener('click', function () { state.playing ? stopPlay() : play(); });
@@ -570,6 +575,7 @@
       $('tl-next').addEventListener('click', function () { stopPlay(); setMonth(Math.round(state.month) + 1); });
       $('tl-baseline').addEventListener('change', function (e) { state.baseline = e.target.value; render(); });
       el.timeline.addEventListener('click', function (e) {
+        if (e.target.closest('[data-closeup]')) { stopPlay(); if (periodIndex() !== TL.closeup.month) setMonth(TL.closeup.month); TL.closeup.open(0); return; }
         const t = e.target.closest('[data-month]');
         if (t) { stopPlay(); if (t.dataset.node) state.selected = t.dataset.node; setMonth(+t.dataset.month); }
       });
@@ -579,6 +585,7 @@
     $('tl-play').textContent = state.playing ? '❚❚ Pause' : '▶ Play';
     $('tl-baseline').value = state.baseline;
     Array.prototype.forEach.call(el.timeline.querySelectorAll('.p-timeline__tick'), function (b) { b.classList.toggle('is-active', +b.dataset.month === pi); });
+    if ($('tl-kept')) $('tl-kept').classList.toggle('is-current', pi === TL.closeup.month);
     $('tl-markers').innerHTML = Object.keys(byMonth).map(function (p) {
       const i = TL.MONTHS.indexOf(p); if (i < 0) return '';
       const cs = byMonth[p];
@@ -1018,7 +1025,7 @@
     if (!pinned) return;
     const t = e.target;
     // the timeline isn't a filter: scrubbing keeps the tooltip open and refreshes it for the new month
-    if (el.tooltip.contains(t) || el.svg.contains(t) || el.timeline.contains(t) || $('assign-dialog').contains(t) || $('assign-dialog').open) return;
+    if (el.tooltip.contains(t) || el.svg.contains(t) || el.timeline.contains(t) || $('assign-dialog').contains(t) || $('assign-dialog').open || $('closeup-dialog').open) return;
     hideTip();
   });
   el.tooltip.addEventListener('click', function (e) {
@@ -1159,7 +1166,7 @@
     if (n && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); selectNode(n.dataset.node); }
   });
   document.addEventListener('keydown', function (e) {
-    if (dlg.open) return; // the dialog handles its own Escape
+    if (dlg.open || $('closeup-dialog').open) return; // dialogs handle their own Escape
     if (e.key === 'Escape' && pinned) { hideTip(); return; }
     if (e.key === 'Escape' && state.selected) { state.selected = null; render(); }
     if (e.key === ' ' && tab().time && e.target === document.body) { e.preventDefault(); state.playing ? stopPlay() : play(); }

@@ -440,7 +440,9 @@ window.TL = window.TL || {};
       parts.stability = clamp(parts.stability - 35);
       parts.reporting = clamp(parts.reporting - 20);
     }
-    const fi = INCIDENT.fleet[m], fa = d.siteTrue === 'factory' && INCIDENT.factory[m];
+    // plants the refresh hold caught never ran r214, so they skip the crash loop (but share the hold)
+    const spared = d.closeup && d.closeup.spared && (m === 7 || m === 8);
+    const fi = INCIDENT.fleet[m], fa = d.siteTrue === 'factory' && !spared && INCIDENT.factory[m];
     if (fi) Object.keys(fi).forEach(function (k) { parts[k] = clamp(parts[k] + fi[k]); });
     if (fa) Object.keys(fa).forEach(function (k) {
       parts[k] = k === 'stability' ? Math.min(parts[k], fa[k]) : clamp(parts[k] + fa[k]);
@@ -527,8 +529,9 @@ window.TL = window.TL || {};
       const vol = d.scale * Math.pow(1 + d.growth, m);
       publishersFor(d, a).forEach(function (pub) {
         const r = route(a, pub);
-        const base = BASE_RATE[pub] * vol * (pub === 'plc' && INCIDENT.volume[m] ? INCIDENT.volume[m] : 1);
-        const schemaF = (pub === 'plc' && SCHEMA_DROP_INCIDENT[m]) || SCHEMA_DROP[pub] || 0.006;
+        const hit = pub === 'plc' && !(d.closeup && d.closeup.spared); // held plants never ran r214
+        const base = BASE_RATE[pub] * vol * (hit && INCIDENT.volume[m] ? INCIDENT.volume[m] : 1);
+        const schemaF = (hit && SCHEMA_DROP_INCIDENT[m]) || SCHEMA_DROP[pub] || 0.006;
         const shapingF = SHAPING_DROP[pub] || 0;
         const size = EVENT_BYTES[pub] || 600;
         // a fact inherits the device's attributes (shared, not copied: matters at 5,000 devices)
@@ -546,12 +549,109 @@ window.TL = window.TL || {};
     cache[m] = facts;
     return facts;
   }
+  // ---- Incident close-up (hour by hour) -----------------------------------
+  // Fine-grained telemetry is normally kept for a short rolling window and then
+  // summarised. A trigger (alert, change event, manual pin, legal hold) keeps a
+  // window of detail beyond that, scoped narrowly, with a visible reason and an
+  // expiry. One window is kept in this data: the night r214 reached stable.
+  // Hours count from 16 Jun 2026 22:00 UTC. r214 is published at 23:00; plants
+  // pick it up one by one (Singapore and London first); the refresh hold at
+  // 09:15 catches the plants that hadn't refreshed yet, which stay on r212.
+  const CLOSEUP_WINDOWS = { sgp: [1.3, 3.1], ldn: [3.2, 5.6], fra: [5.8, 7.6], par: [7.7, 8.4], nyc: [8.5, 12.5], sfo: [11.5, 14] };
+  const CLOSEUP = (function () {
+    const scope = DEVICES.filter(function (d) {
+      return d.attrs.site === 'factory' && d.onboarded <= 7 && d.extras.apps.indexOf('plc') >= 0;
+    });
+    if (!scope.length) return null;
+    const holdAt = 11.25, alertAt = 5.75; // 09:15 and 03:45
+    Object.keys(CLOSEUP_WINDOWS).forEach(function (reg) {
+      const ds = scope.filter(function (d) { return d.attrs.region === reg; });
+      const w = CLOSEUP_WINDOWS[reg];
+      // the original 38 are spaced evenly through their region's window (same in every fleet);
+      // generated extras (enterprise) land at seeded random times in the same window
+      const core = ds.filter(function (d) { return DEVICES.indexOf(d) < 38; });
+      const rx = mulberry32(99991 + reg.charCodeAt(0) * 31 + reg.charCodeAt(2));
+      ds.forEach(function (d, k) {
+        const at = k < core.length ? w[0] + (k + 0.5) / core.length * (w[1] - w[0]) : w[0] + rx() * (w[1] - w[0]);
+        d.closeup = { refreshAt: at, spared: at > holdAt, seed: 57721 * (k + 1) + reg.charCodeAt(0) * 131 };
+      });
+    });
+    return {
+      start: '2026-06-16T22:00:00Z', hours: 24, month: 7, holdAt: holdAt, alertAt: alertAt,
+      devices: scope.map(function (d) { return d.id; }),
+      reason: 'Alert: opcua-connector restarts on factory devices',
+      trigger: 'alert',
+      scope: 'opcua-connector on factory devices',
+      expires: '2027-06-17',
+      keptBy: 'Kept automatically when the alert fired. The rolling 72-hour detail buffer still held the hours before it, so the window starts when r214 was published.',
+      states: [
+        { id: 'r212', label: 'Running r212', color: '#3E786C' },
+        { id: 'crash', label: 'Crash-looping on r214', color: '#AC4E2A' },
+        { id: 'held', label: 'Refresh held · still on r212', color: '#BE9D87' }
+      ],
+      events: [
+        { h: 1, label: 'opcua-connector r214 promoted to stable' },
+        { h: alertAt, label: 'Alert fired: opcua-connector restarting on 5+ factory devices for an hour. Detail kept from 22:00' },
+        { h: 10 + 42 / 60, label: 'Ana Ribeiro · SRE: “Factory health is falling fast… Paging plant IT.”' },
+        { h: holdAt, label: 'Tom Okafor · SRE: fleet-wide snap refresh hold' }
+      ]
+    };
+  })();
+  // A device's opcua-connector state during hour h (fraction of the hour in each state)
+  function closeupState(d, h) {
+    const c = d.closeup;
+    if (c.spared) return h + 1 <= CLOSEUP.holdAt ? { r212: 1 } : h >= CLOSEUP.holdAt ? { held: 1 } : { r212: CLOSEUP.holdAt - h, held: h + 1 - CLOSEUP.holdAt };
+    const crash = Math.max(0, Math.min(1, h + 1 - c.refreshAt));
+    return crash >= 1 ? { crash: 1 } : crash <= 0 ? { r212: 1 } : { r212: 1 - crash, crash: crash };
+  }
+  // Hourly facts for the close-up: only the kept scope (opcua-connector on factory devices).
+  // A crash-looping connector sends ~15% of its usual events, and ~40% of those fail schema
+  // validation (truncated start-up records).
+  const closeupCache = {};
+  function closeupFacts(h) {
+    if (!CLOSEUP) return [];
+    if (closeupCache[h]) return closeupCache[h];
+    const facts = [];
+    CLOSEUP.devices.forEach(function (id) {
+      const d = DEVICES.filter(function (x) { return x.id === id; })[0];
+      const a = attrsAt(d, CLOSEUP.month);
+      const vol = d.scale * Math.pow(1 + d.growth, 6) / 24; // the month before: normal hourly volume
+      const r = route(a, 'plc'), st = closeupState(d, h);
+      const rnd = mulberry32(d.closeup.seed + h * 7919); // same numbers whatever order hours are drawn in
+      const noise = 0.92 + rnd() * 0.16, restarts = 18 + Math.round(rnd() * 22);
+      Object.keys(st).forEach(function (s) {
+        const share = st[s]; if (!share) return;
+        const crash = s === 'crash';
+        const base = BASE_RATE.plc * vol * share * noise * (crash ? 0.15 : 1);
+        const schemaF = crash ? 0.4 : 0.006, shapingF = crash ? 0 : SHAPING_DROP.plc;
+        const push = function (policy, dest, rule, count) {
+          const f = Object.create(a);
+          f.device = d.id; f.publisher = 'plc'; f.policy = policy; f.destination = dest; f.rule = rule;
+          f.count = count; f.bytes = count * EVENT_BYTES.plc; f.cstate = s;
+          f.restarts = crash && policy === 'schema' ? share * restarts : 0;
+          facts.push(f);
+        };
+        push('schema', 'drop-schema', 'Schema', base * schemaF);
+        if (shapingF) push('shaping', 'drop-shaping', 'Shaping', base * shapingF);
+        const kept = base * (1 - schemaF - shapingF);
+        r.to.forEach(function (t) { push(r.policy, t[0], r.id, kept * t[1]); });
+      });
+    });
+    closeupCache[h] = facts;
+    return facts;
+  }
+  function closeupDevice(id, h) {
+    const d = DEVICES.filter(function (x) { return x.id === id; })[0];
+    if (!d || !d.closeup) return null;
+    return { refreshAt: d.closeup.refreshAt, spared: d.closeup.spared, state: closeupState(d, h) };
+  }
+
   // Reporting status per month (own RNG, so health, flows and comments are unchanged).
   // Factory devices are partially silent in Jun/Jul 2026: opcua-connector was crash-looping.
   DEVICES.forEach(function (d, i) {
     const r = mulberry32(314159 * (i + 1));
     d.report = MONTHS.map(function (_, m) {
-      if ((d.siteTrue || d.attrs.site) === 'factory' && (m === 7 || m === 8) && d.extras.apps.indexOf('plc') >= 0) {
+      if ((d.siteTrue || d.attrs.site) === 'factory' && (m === 7 || m === 8) && d.extras.apps.indexOf('plc') >= 0 && !(d.closeup && d.closeup.spared)) {
         return { status: 'partial', snap: 'plc', hours: m === 7 ? 30 + Math.round(r() * 60) : 120 + Math.round(r() * 200), cause: 'crash-looping' };
       }
       const weak = d.health && (d.health.policy != null); // neglected devices report less reliably
@@ -757,6 +857,7 @@ window.TL = window.TL || {};
     DEVICES: DEVICES, VIEWS: VIEWS, GROUP_BYS: GROUP_BYS, GROUP_BY_MENU: GROUP_BY_MENU, GROUP_BY_LABELS: GROUP_BY_LABELS,
     PIPELINE: ['publisher', 'policy', 'destination'],
     snapshot: snapshot, deviceAt: deviceAt,
+    CLOSEUP: CLOSEUP, closeupFacts: closeupFacts, closeupDevice: closeupDevice,
     valueOf: valueOf, parseNodeId: parseNodeId, nodeLabel: nodeLabel,
     viewById: function (id) { return VIEWS.filter(function (v) { return v.id === id; })[0]; }
   });

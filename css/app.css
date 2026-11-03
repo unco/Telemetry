@@ -409,3 +409,52 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .p-pipeline__toggle[aria-expanded="true"] .p-insights__chevron { transform: rotate(90deg); }
 .p-pipeline__tablewrap[hidden] { display: none; }
 .p-pipeline__stages { border-bottom: 0 !important; padding-bottom: 4px !important; }
+
+/* Kept detail: marker + line on the monthly timeline */
+.p-timeline__keptmark { position: absolute; top: 26px; z-index: 1; width: 12px; height: 12px; margin-left: -6px; transform: rotate(45deg); background: #C49A00; border: 2px solid #fff; box-shadow: 0 0 0 1px #C49A00; cursor: pointer; padding: 0; }
+.p-timeline__keptmark:hover, .p-timeline__keptmark:focus-visible { background: #8a6d00; }
+.p-timeline__kept { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: .8125rem; color: var(--muted); padding: 8px 0 0; border-top: 1px dashed var(--border); margin-top: 4px; }
+.p-timeline__kept .p-button--small { margin-top: 0; }
+.p-timeline__kept.is-current { color: var(--text); }
+.p-timeline__kept-text { flex: 1 1 280px; }
+
+/* Close-up dialog (hour by hour) */
+.p-modal--wide { width: min(1240px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; }
+.p-closeup { padding: 20px 24px 16px; position: relative; }
+.p-closeup__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 12px; }
+.p-closeup__title { font-size: 1.5rem; font-weight: 300; margin: 2px 0 2px; }
+.p-closeup__sub { margin: 0; color: var(--muted); font-size: .9375rem; }
+.p-kept { border-left: 3px solid #C49A00; background: #FFFBEB; padding: 10px 14px; margin-bottom: 14px; }
+.p-kept__facts { display: flex; flex-wrap: wrap; gap: 6px 28px; margin: 8px 0 6px; }
+.p-kept__facts dt { font-size: .6875rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.p-kept__facts dd { margin: 0; font-size: .9375rem; }
+.p-kept__note { margin: 0; font-size: .8125rem; color: var(--muted); max-width: 70em; }
+.p-kpis--closeup { margin-bottom: 10px; }
+.p-kpis--closeup .p-kpi { min-height: 0; }
+.p-closeup__key { display: flex; gap: 18px; flex-wrap: wrap; font-size: .8125rem; margin-bottom: 6px; }
+.p-closeup__keyitem { display: inline-flex; align-items: center; gap: 6px; }
+.p-closeup__swatch { width: 12px; height: 12px; border-radius: 2px; }
+.p-closeup__chart { max-height: 52vh; overflow: auto; }
+.p-timeline--hours { margin: 10px -24px -16px; }
+.p-timeline__event { position: absolute; transform: translateX(-50%); width: 20px; height: 18px; border-radius: 3px; border: 1px solid var(--border-strong); background: #fff; color: var(--muted); font-size: .6875rem; font-weight: 600; cursor: pointer; padding: 0; }
+.p-timeline__event.is-past { border-color: #C49A00; background: #FFF6D6; color: #5c4800; }
+.p-timeline__event.is-now { background: #C49A00; color: #111; }
+.p-closeup__events { list-style: none; margin: 4px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 4px 16px; }
+.p-closeup__event { display: flex; gap: 8px; align-items: baseline; width: 100%; text-align: left; background: none; border: 0; padding: 4px 0; cursor: pointer; font: inherit; font-size: .8125rem; color: var(--muted); }
+.p-closeup__event.is-past { color: var(--text); }
+.p-closeup__event.is-now { font-weight: 500; }
+.p-closeup__num { flex: none; width: 18px; height: 16px; border-radius: 3px; background: #eee; font-size: .6875rem; font-weight: 600; text-align: center; line-height: 16px; }
+.p-closeup__event.is-past .p-closeup__num { background: #FFF6D6; color: #5c4800; }
+.p-closeup__time { flex: none; font-family: "Ubuntu Sans Mono", monospace; }
+.p-closeup__tip { position: fixed; z-index: 20; }
+@media (max-width: 760px) {
+  .p-modal--wide { width: 100vw; max-width: 100vw; max-height: 100vh; height: 100vh; margin: 0; }
+  .p-closeup { padding: 14px 12px; }
+  .p-closeup__head { flex-direction: column; }
+  .p-timeline--hours { margin: 10px -12px -14px; }
+  .p-timeline--hours .p-timeline__tick:nth-child(even) { display: none; }
+  .p-kpis--closeup { grid-template-columns: 1fr 1fr; }
+  .p-kpis--closeup .p-kpi:nth-child(even) { border-left: 1px solid var(--border); padding-left: 10px; }
+  .p-kpis--closeup .p-kpi:nth-child(-n+2) { border-top: 0; }
+  .p-kpis--closeup .p-kpi__value { font-size: 1.375rem; }
+}

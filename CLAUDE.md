@@ -75,6 +75,15 @@ Prototype of the **Insights** page (Telemetry product): a single-page Sankey. Se
 - On mid (and 16–30), the ladder note leads with "As your fleet grows, group by Site to keep this view readable." (no counts; dismissible for the session), quick group-by buttons (plain buttons, no coverage counts); the Others line is secondary.
 - Ladder: ≤15 every device · 16–30 nudge to group · 31+ top 20 (ranked by the view; frozen to the latest month; commented/selected/open devices always shown; rank order in column 1) + "Others" with a note on what it hides · 100+ opens grouped by Site, drill into a group via "Show devices in this group".
 
+## Kept detail (point 8)
+- Crash loops are minutes/hours; monthly data can't show them. Retention model: short rolling fine-grained window (72 h) → triggered retention (alert, change event, manual pin, legal hold), scoped narrowly, reason shown, expiring.
+- One kept window: 16 Jun 2026 22:00–17 Jun 22:00 UTC, triggered by the opcua-connector restarts alert (03:45), scope opcua-connector on factory devices, expires 17 Jun 2027. Diamond on June + "Detail kept" line on the monthly timeline → close-up dialog (`js/closeup.js`) with hourly Sankey, KPIs, numbered events (23:00 r214 stable, 03:45 alert, 08:42 Ana, 09:15 Tom's hold).
+- nyc-plant-02 and sfo-plant-01 were caught by the hold (never ran r214): no factory incident penalty or partial reporting for them in Jun/Jul.
+
+## Other points from Mark's review
+- Point 6: in the final app, rules link to the individual rule's config in the same Telemetry app (no change to the prototype).
+- Point 7: this page is for people responsible for governing data flow; larger orgs have more specialised roles. A role-based focus belongs on the Overview/home page, not here.
+
 ## Deployment
 - Work branch: `claude/sankey-telemetry-illustration-vkal2f`.
 - Bump the `?v=` cache-busting query on the CSS/JS links in index.html with each deploy (phones cache GitHub Pages assets).
