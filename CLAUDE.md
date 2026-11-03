@@ -2,6 +2,10 @@
 
 Prototype of the **Insights** page (Telemetry product): a single-page Sankey. See README.md for the data model.
 
+## Purpose
+- This prototype is a **pitch to Mark** for selling the Canonical ecosystem vision. Keep the Canonical infrastructure views (Juju, JAAS, MAAS, MicroCloud, stack) prominent; toning down the language is for later iterations, not this one.
+- Decided not to add (point 4 review): an "Updates" stage in pipeline health, "Enforced on the device / in transit" policy markers, or demoting the Canonical infrastructure views.
+
 ## Telemetry architecture (as described by the product owner)
 - Every snap on a device sends its telemetry to **snapd**.
 - snapd enforces rules and naming, and multiplexes all snaps into a **single stream** to the **telemetry endpoint**.
