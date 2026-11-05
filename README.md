@@ -24,8 +24,8 @@ Open `index.html` directly in a browser; there's no build step. All data is **sy
 
 It's a single page with every capability switched on:
 
-- **View:** a dropdown that starts on Neutral. Other views colour devices and their flows by an attribute; click a colour to isolate it.
-- **Group by:** column 1 collapses to the group-by values. Chips filter the streams, and Alt-click shows only one. When showing devices, a search box filters them by name.
+- **View:** a dropdown that starts on Neutral. Other views colour devices and their flows by an attribute; the **Colour by** dropdown beside it picks one value to isolate.
+- **Group by:** column 1 collapses to the group-by values. The **Show streams** dropdown (**Show devices with** when ungrouped) ticks values on and off, and **Only** shows just one. When showing devices, a **Devices** search box filters them by name. View, Group by, Colour by, Show and Devices sit in one toolbar row.
 - **Path tracing:** hover or click any node to trace its full path.
 - **Comments:** attach to any node, scoped to the current view and group-by. Comments on the same node in other contexts are linked.
 - **Timeline:** a 12-month scrubber with play. Comments can be pinned to a month and show as timeline markers. Change percentages appear only when "Compare to" is set.
@@ -159,9 +159,9 @@ Site and Environment are **manual** keys: labels people assign, such as Landscap
 - **The modal:** it has a text field that autocompletes to the key's existing values, including near matches (typing `factory2` also shows Factory floor), so people reuse values where they can.
   - If the text isn't an existing value, the list offers **+ Create "factory2" as a new site**, and the button changes to **Create and assign**.
   - An exact match, ignoring case, reuses the existing value instead of creating a duplicate.
-  - New values become real values for that key: they get their own stream, filter chip and autocomplete entry.
+  - New values become real values for that key: they get their own stream, Show filter entry and autocomplete entry.
   - For Site, the modal also suggests a value inferred from the hostname, e.g. `nyc-dc-01` → Data centre.
-- **Effect:** the chart, groups and filter chips update immediately. The assignment is described as being shared with Landscape as a tag. In the prototype, assignments and new values are saved in the browser, and **Reset assignments** in the footer clears both.
+- **Effect:** the chart, groups and Show filter update immediately. The assignment is described as being shared with Landscape as a tag. In the prototype, assignments and new values are saved in the browser, and **Reset assignments** in the footer clears both.
 - **Model:** each device keeps its true site, so its snaps, health and the incident data don't change while the label is missing.
 
 ## Device tooltip
@@ -177,7 +177,7 @@ Site and Environment are **manual** keys: labels people assign, such as Landscap
 - a click outside the chart;
 - a click on another device, which opens that device's tooltip instead;
 - a click on a non-device node;
-- a filter change: view, group by, colour chips, filter chips or device search;
+- a filter change: view, group by, Colour by, Show or device search;
 - Escape, for keyboard users.
 
 ## Publishers (snaps)

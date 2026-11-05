@@ -98,8 +98,34 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .p-filter-chip__count { font-family: "Ubuntu Sans Mono", ui-monospace, monospace; font-size: .75rem; color: var(--muted); }
 
 /* Question + KPIs */
-.p-question { margin: 4px 0 14px; font-size: 1.125rem; font-weight: 300; display: flex; gap: 10px; align-items: baseline; }
-.p-question__swatch { width: 12px; height: 12px; flex: none; border-radius: 2px; transform: translateY(1px); }
+.p-question { margin: 4px 0 14px; font-size: 1.125rem; font-weight: 300; }
+
+/* Toolbar dropdowns (Colour by, Show): look like .p-select, open a menu below */
+.p-dropdown { position: relative; }
+.p-dropdown__toggle { display: flex; align-items: center; width: 100%; max-width: 280px; text-align: left; font: inherit; color: var(--text); white-space: nowrap; }
+.p-dropdown__toggle:focus-visible, .p-dropdown__item:focus-visible, .p-dropdown__only:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.p-dropdown__value { display: inline-flex; align-items: center; gap: 8px; overflow: hidden; text-overflow: ellipsis; }
+.p-dropdown__menu { position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; min-width: 100%; width: max-content; max-width: 340px; max-height: 360px; overflow-y: auto; background: #fff; border: 1px solid var(--border-strong); box-shadow: 0 4px 16px rgba(0,0,0,.12); padding: 4px 0; }
+.p-dropdown__menu[hidden] { display: none; }
+.p-dropdown__item { display: flex; align-items: center; gap: 8px; width: 100%; border: 0; background: none; padding: 7px 12px; font: inherit; font-size: .875rem; color: var(--text); text-align: left; cursor: pointer; }
+.p-dropdown__item:hover { background: var(--bg-soft); }
+.p-dropdown__item.is-selected { box-shadow: inset 3px 0 0 var(--ink); font-weight: 500; }
+.p-dropdown__label { flex: 1; }
+.p-dropdown__count { font-family: "Ubuntu Sans Mono", ui-monospace, monospace; font-size: .75rem; color: var(--muted); margin-left: 12px; }
+.p-dropdown__strip { display: inline-flex; flex: none; }
+.p-dropdown__strip span { width: 6px; height: 12px; }
+.p-dropdown__check { width: 16px; height: 16px; flex: none; border: 1px solid var(--border-strong); display: inline-flex; align-items: center; justify-content: center; font-size: .7rem; border-radius: 2px; }
+.p-dropdown__item.is-on .p-dropdown__check { background: var(--ink); border-color: var(--ink); color: #fff; }
+.p-dropdown__menu--multi .p-dropdown__item:not(.is-on) .p-dropdown__label { color: var(--faint); }
+.p-dropdown__row { display: flex; align-items: center; }
+.p-dropdown__row:hover { background: var(--bg-soft); }
+.p-dropdown__row .p-dropdown__item:hover { background: none; }
+.p-dropdown__only { border: 0; background: none; color: var(--link); font: inherit; font-size: .8125rem; padding: 7px 12px 7px 4px; cursor: pointer; visibility: hidden; }
+.p-dropdown__row:hover .p-dropdown__only, .p-dropdown__only:focus-visible { visibility: visible; }
+.p-dropdown__foot { border-top: 1px solid var(--border); margin-top: 4px; padding: 6px 12px 2px; }
+.p-dropdown__foot .p-link:disabled { color: var(--faint); cursor: default; text-decoration: none; }
+@media (hover: none) { .p-dropdown__only { visibility: visible; } }
+#search-field .p-search { margin-left: 0; min-width: 190px; padding: 7px 10px; font-size: 1rem; background: var(--bg-soft); }
 .p-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); margin-bottom: 18px; }
 .p-kpi { padding: 12px 16px 14px 0; position: relative; min-height: 92px; }
 .p-kpi + .p-kpi { padding-left: 16px; border-left: 1px solid var(--border); }
@@ -227,6 +253,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
   .p-segmented::-webkit-scrollbar { display: none; }
   .p-segmented__item { flex: none; }
   .p-select { width: 100%; }
+  .p-dropdown__toggle { max-width: none; }
+  .p-dropdown__menu { width: 100%; max-width: none; }
+  #search-field .p-search { width: 100%; }
   .p-group-filter { padding: 10px; }
   .p-group-filter__label { width: 100%; }
   .p-search { width: 100%; margin-left: 0; }

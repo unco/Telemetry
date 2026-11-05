@@ -35,6 +35,7 @@
   const el = {
     viewSelect: $('view-select'), hlField: $('hl-field'), groupby: $('groupby'),
     groupbyField: $('groupby-field'), hl: $('hl-switch'), hlLabel: $('lbl-hl'), filter: $('group-filter'), question: $('view-question'),
+    showField: $('show-field'), showLabel: $('lbl-show'), searchField: $('search-field'), search: $('device-q'),
     kpis: $('kpis'), legend: $('legend'), wrap: $('chart-wrap'), svg: $('sankey'), timeline: $('timeline'),
     comments: $('comments'), tooltip: $('tooltip'), ladder: $('ladder-note')
   };
@@ -209,48 +210,78 @@
       }).join('') + '</optgroup>';
     }).join('');
   }
+  // ---- toolbar dropdowns ---------------------------------------------------
+  // "Colour by" (single choice) and "Show" (multi choice) are dropdowns that sit in the
+  // toolbar beside View and Group by. Their menus are rebuilt while the timeline plays,
+  // so which one is open is kept here rather than in the DOM.
+  let openMenu = null; // 'hl' | 'filter' | null
+  function swatch(c) {
+    return '<span class="swatch' + (c ? '' : ' swatch--none') + '" style="background:' + (c || '#d3d3d3') + '"></span>';
+  }
+  function dropdown(id, labelledBy, summary, menu, multi) {
+    const open = openMenu === id;
+    return '<button type="button" class="p-select p-dropdown__toggle" data-dd="' + id + '" aria-haspopup="' + (multi ? 'true' : 'listbox') + '" aria-expanded="' + open + '" aria-labelledby="' + labelledBy + ' dd-' + id + '">' +
+      '<span class="p-dropdown__value" id="dd-' + id + '">' + summary + '</span></button>' +
+      '<div class="p-dropdown__menu' + (multi ? ' p-dropdown__menu--multi' : '') + '" role="' + (multi ? 'group' : 'listbox') + '" aria-labelledby="' + labelledBy + '"' + (open ? '' : ' hidden') + '>' + menu + '</div>';
+  }
+  function setMenu(id) {
+    openMenu = id;
+    [['hl', el.hl], ['filter', el.filter]].forEach(function (p) {
+      const t = p[1].querySelector('[data-dd]'), m = p[1].querySelector('.p-dropdown__menu');
+      if (!t || !m) return;
+      t.setAttribute('aria-expanded', String(openMenu === p[0]));
+      m.hidden = openMenu !== p[0];
+    });
+  }
   function buildHighlight() {
     const a = attr(), iso = state.isolate[state.view] || null;
     const counts = deviceCounts(periodIndex(), view().attr);
     el.hlField.hidden = isNeutral();
-    el.hlLabel.textContent = 'Colour by ' + a.label.toLowerCase();
-    el.hl.innerHTML = a.values.map(function (v) {
-      const on = iso === v.id, dimmed = iso && !on;
-      return '<button type="button" role="radio" aria-checked="' + on + '" class="p-chip p-chip--legend' + (on ? ' is-active' : '') + (dimmed ? ' is-dimmed' : '') + '" data-iso="' + v.id + '" title="' + (on ? 'Show all values' : 'Isolate ' + esc(v.label)) + '">' +
-        '<span class="swatch' + (v.color ? '' : ' swatch--none') + '" style="background:' + (v.color || '#d3d3d3') + '"></span>' + esc(v.label) +
-        '<span class="p-chip__count">' + (counts[v.id] || 0) + '</span></button>';
-    }).join('') + (iso ? '<button type="button" class="p-link" data-iso="">Show all</button>' : '');
+    if (isNeutral()) { if (openMenu === 'hl') openMenu = null; return; }
+    el.hlLabel.textContent = 'Colour by ' + (TL.GROUP_BY_LABELS[view().attr] || a.label).toLowerCase();
+    const cur = iso && a.values.filter(function (v) { return v.id === iso; })[0];
+    const strip = '<span class="p-dropdown__strip" aria-hidden="true">' + a.values.filter(function (v) { return v.color; }).slice(0, 6)
+      .map(function (v) { return '<span style="background:' + v.color + '"></span>'; }).join('') + '</span>';
+    const summary = cur ? swatch(cur.color) + esc(cur.label) : strip + 'All values';
+    const opt = function (id, inner, sel) {
+      return '<button type="button" role="option" aria-selected="' + sel + '" class="p-dropdown__item' + (sel ? ' is-selected' : '') + '" data-iso="' + id + '">' + inner + '</button>';
+    };
+    const menu = opt('', strip + '<span class="p-dropdown__label">All values</span>', !iso) +
+      a.values.map(function (v) {
+        return opt(v.id, swatch(v.color) + '<span class="p-dropdown__label">' + esc(v.label) + '</span><span class="p-dropdown__count">' + (counts[v.id] || 0) + '</span>', iso === v.id);
+      }).join('');
+    el.hl.innerHTML = dropdown('hl', 'lbl-hl', summary, menu, false);
   }
   function buildGroupFilter() {
-    if (!tab().groupBy) { el.filter.hidden = true; return; }
     const g = groupBy(), fd = filterDim();
+    el.searchField.hidden = g !== 'device';
+    if (document.activeElement !== el.search) el.search.value = state.query;
+    if (!tab().groupBy || fd === 'neutral') { // nothing to filter by: devices get the search box only
+      el.showField.hidden = true; if (openMenu === 'filter') openMenu = null; return;
+    }
+    el.showField.hidden = false;
     const ex = state.excluded[fd] || {};
-    const counts = (function () { // unfiltered device counts so excluded chips still show their size
+    const counts = (function () { // unfiltered device counts so excluded values still show their size
       const seen = {}, out = {};
       TL.snapshot(periodIndex()).forEach(function (x) { if (seen[x.device]) return; seen[x.device] = 1; out[x[fd]] = (out[x[fd]] || 0) + 1; });
       return out;
     })();
-    const nEx = Object.keys(ex).length;
-    el.filter.hidden = false;
-    const search = g === 'device'
-      ? '<input type="search" class="p-search" id="device-q" placeholder="Filter devices…" value="' + esc(state.query) + '" aria-label="Filter devices by name">'
-      : '';
-    if (fd === 'neutral') { // nothing to filter by in the neutral view: devices get the search box only
-      el.filter.innerHTML = '<span class="p-group-filter__label">Devices</span>' + search;
-      const q0 = $('device-q');
-      if (q0) q0.addEventListener('input', function (e) { hideTip(); state.query = e.target.value; render(); });
-      return;
-    }
-    el.filter.innerHTML = '<span class="p-group-filter__label">' + (g === 'device' ? 'Show devices with' : 'Show streams') + '</span>' +
-      TL.ATTRIBUTES[fd].values.map(function (v) {
-        const on = !ex[v.id];
-        return '<button type="button" class="p-filter-chip' + (on ? ' is-on' : '') + '" aria-pressed="' + on + '" data-gval="' + v.id + '" title="Click to toggle · Alt-click to show only this">' +
-          '<span class="p-filter-chip__check" aria-hidden="true">' + (on ? '✓' : '') + '</span>' + esc(v.label) +
-          '<span class="p-filter-chip__count">' + (counts[v.id] || 0) + '</span></button>';
-      }).join('') +
-      (nEx ? '<button type="button" class="p-link" data-gall="1">Show all</button>' : '') + search;
-    const q = $('device-q');
-    if (q) q.addEventListener('input', function (e) { hideTip(); state.query = e.target.value; render(); });
+    const vals = TL.ATTRIBUTES[fd].values, shownVals = vals.filter(function (v) { return !ex[v.id]; });
+    el.showLabel.textContent = g === 'device' ? 'Show devices with' : 'Show streams';
+    const summary = shownVals.length === vals.length ? 'All'
+      : shownVals.length === 1 ? esc(shownVals[0].label)
+      : shownVals.length + ' of ' + vals.length;
+    const menu = vals.map(function (v) {
+      const on = !ex[v.id];
+      return '<div class="p-dropdown__row">' +
+        '<button type="button" role="menuitemcheckbox" aria-checked="' + on + '" class="p-dropdown__item' + (on ? ' is-on' : '') + '" data-gval="' + v.id + '">' +
+          '<span class="p-dropdown__check" aria-hidden="true">' + (on ? '✓' : '') + '</span>' +
+          '<span class="p-dropdown__label">' + esc(v.label) + '</span><span class="p-dropdown__count">' + (counts[v.id] || 0) + '</span></button>' +
+        '<button type="button" class="p-dropdown__only" data-gonly="' + v.id + '" aria-label="Show only ' + esc(v.label) + '">Only</button>' +
+      '</div>';
+    }).join('') +
+      '<div class="p-dropdown__foot"><button type="button" class="p-link" data-gall="1"' + (shownVals.length === vals.length ? ' disabled' : '') + '>Show all</button></div>';
+    el.filter.innerHTML = dropdown('filter', 'lbl-show', summary, menu, true);
   }
 
   // ---- dynamic render -------------------------------------------------
@@ -264,8 +295,7 @@
   function draw() {
     const t = tab(), v = view();
     el.groupbyField.hidden = !t.groupBy;
-    const firstColour = attr().values.filter(function (x) { return x.color; })[0].color;
-    el.question.innerHTML = '<span class="p-question__swatch" style="background:' + firstColour + '"></span>' + esc(v.question);
+    el.question.textContent = v.question;
 
     const top = topSet();
     TL.valueOf('device', '__others').label = top ? 'Others (' + top.others.toLocaleString('en-GB') + ' devices)' : 'Others';
@@ -1092,26 +1122,43 @@
     state.hover = null; clearColumn1Selection();
     rebuildControls(); render();
   });
-  el.hl.addEventListener('click', function (e) {
-    if (e.target.closest('[data-iso]')) hideTip();
-    const b = e.target.closest('[data-iso]'); if (!b) return;
-    const v = b.dataset.iso;
-    state.isolate[state.view] = !v || state.isolate[state.view] === v ? null : v;
-    buildHighlight(); render();
+  // open/close either toolbar dropdown; close on outside click or Escape
+  document.addEventListener('click', function (e) {
+    const t = e.target.closest('[data-dd]');
+    if (t) { hideTip(); setMenu(openMenu === t.dataset.dd ? null : t.dataset.dd); return; }
+    // a click inside a menu can rebuild it, detaching the target: that's not an outside click
+    if (openMenu && e.target.isConnected && !e.target.closest('.p-dropdown')) setMenu(null);
   });
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape' || !openMenu) return;
+    const host = openMenu === 'hl' ? el.hl : el.filter;
+    setMenu(null);
+    const t = host.querySelector('[data-dd]'); if (t) t.focus();
+    e.stopImmediatePropagation();
+  }, true);
+  el.hl.addEventListener('click', function (e) {
+    const b = e.target.closest('[data-iso]'); if (!b) return;
+    hideTip();
+    state.isolate[state.view] = b.dataset.iso || null;
+    openMenu = null;
+    buildHighlight(); render();
+    el.hl.querySelector('[data-dd]').focus();
+  });
+  el.search.addEventListener('input', function (e) { hideTip(); state.query = e.target.value; render(); });
   el.groupby.addEventListener('change', function (e) {
     hideTip();
     state.groupBy = e.target.value; state.hover = null; clearColumn1Selection();
     buildGroupFilter(); render();
   });
   el.filter.addEventListener('click', function (e) {
-    if (e.target.closest('[data-gval], [data-gall]')) hideTip();
+    const hit = e.target.closest('[data-gval], [data-gall], [data-gonly]'); if (!hit) return;
+    hideTip();
     const fd = filterDim();
-    if (e.target.closest('[data-gall]')) { state.excluded[fd] = {}; buildHighlight(); buildGroupFilter(); render(); return; }
-    const b = e.target.closest('[data-gval]'); if (!b) return;
+    const refocus = function (sel) { const n = el.filter.querySelector(sel); if (n) n.focus(); };
+    if (hit.dataset.gall) { state.excluded[fd] = {}; buildHighlight(); buildGroupFilter(); render(); refocus('[data-dd]'); return; }
     const ex = state.excluded[fd] = state.excluded[fd] || {};
-    const val = b.dataset.gval;
-    if (e.altKey) {
+    const val = hit.dataset.gval || hit.dataset.gonly;
+    if (hit.dataset.gonly || e.altKey) {
       TL.ATTRIBUTES[fd].values.forEach(function (v) { if (v.id !== val) ex[v.id] = true; else delete ex[v.id]; });
     } else if (ex[val]) {
       delete ex[val];
@@ -1120,6 +1167,7 @@
       if (remaining > 1) ex[val] = true; // never filter everything out
     }
     buildHighlight(); buildGroupFilter(); render();
+    refocus((hit.dataset.gonly ? '[data-gonly="' : '[data-gval="') + val + '"]'); // menu was rebuilt; keep keyboard focus in place
   });
 
   // chart interactions (delegated)

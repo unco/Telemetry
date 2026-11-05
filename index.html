@@ -6,7 +6,7 @@
   <title>Insights · Telemetry</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Ubuntu+Sans:wght@300;400;500;600&family=Ubuntu+Sans+Mono&display=swap">
-  <link rel="stylesheet" href="css/app.css?v=20261103q">
+  <link rel="stylesheet" href="css/app.css?v=20261105a">
 </head>
 <body>
 <div class="l-app">
@@ -65,12 +65,19 @@
           <label class="p-field__label" for="groupby">Group by</label>
           <select id="groupby" class="p-select"></select>
         </div>
-        <div class="p-field p-field--grow" id="hl-field">
+        <div class="p-field" id="hl-field">
           <span class="p-field__label" id="lbl-hl">Colour by</span>
-          <div class="p-chips" role="radiogroup" aria-labelledby="lbl-hl" id="hl-switch"></div>
+          <div class="p-dropdown" id="hl-switch"></div>
+        </div>
+        <div class="p-field" id="show-field" hidden>
+          <span class="p-field__label" id="lbl-show">Show</span>
+          <div class="p-dropdown" id="group-filter"></div>
+        </div>
+        <div class="p-field" id="search-field" hidden>
+          <label class="p-field__label" for="device-q">Devices</label>
+          <input type="search" class="p-search" id="device-q" placeholder="Filter by name…" autocomplete="off">
         </div>
       </div>
-      <div class="p-group-filter" id="group-filter" hidden></div>
 
       <div class="p-ladder" id="ladder-note" hidden></div>
       <p class="p-question" id="view-question"></p>
@@ -99,10 +106,10 @@
 <dialog class="p-modal" id="assign-dialog" aria-labelledby="assign-title"></dialog>
 <dialog class="p-modal p-modal--wide" id="closeup-dialog" aria-labelledby="closeup-title"></dialog>
 
-<script src="js/data.js?v=20261103q"></script>
-<script src="js/sankey.js?v=20261103q"></script>
-<script src="js/comments.js?v=20261103q"></script>
-<script src="js/closeup.js?v=20261103q"></script>
-<script src="js/app.js?v=20261103q"></script>
+<script src="js/data.js?v=20261105a"></script>
+<script src="js/sankey.js?v=20261105a"></script>
+<script src="js/comments.js?v=20261105a"></script>
+<script src="js/closeup.js?v=20261105a"></script>
+<script src="js/app.js?v=20261105a"></script>
 </body>
 </html>
