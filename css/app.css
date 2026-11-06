@@ -149,13 +149,14 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* Sankey */
 .sankey { display: block; overflow: visible; }
-.sk-link__base { fill: var(--link-base); opacity: .32; transition: opacity .15s; }
+.sk-links path { fill: none; }
+.sk-link__base { stroke: var(--link-base); opacity: .32; transition: opacity .15s; }
 .sk-link:hover .sk-link__base { opacity: .6; }
 .sk-link__seg { opacity: .62; }
 .sk-link:hover .sk-link__seg { opacity: .8; }
 .sk-link.is-focusing .sk-link__base { opacity: .14; }
 .sk-link__focus { opacity: .75; }
-.sk-link__focus-grey { fill: #8d8d8d; opacity: .4; }
+.sk-link__focus-grey { stroke: #8d8d8d; opacity: .4; }
 .sk-node { cursor: pointer; outline: none; }
 .sk-node__hit { fill: transparent; }
 .sk-node__bar { fill: #9a9a9a; }

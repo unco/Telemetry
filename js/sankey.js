@@ -128,31 +128,32 @@
 
   // ---- Rendering ------------------------------------------------------
   /*
-   * Band for a slice [offset, offset + w] of link l (measured from its top).
-   * The link's centre line is a cubic Bézier; the slice edges are offset
-   * along the curve's normal, so the band keeps a constant thickness even
-   * where the curve is steep (a plain vertical offset would pinch it).
-   * At both ends the tangent is horizontal, so the band meets nodes square.
+   * Each slice [offset, offset + w] of link l (measured from its top) is drawn as one
+   * stroked cubic Bézier along the slice's own centre line, stroke-width w.
+   * Both ends leave and arrive horizontally, so the slice meets nodes square and the
+   * vertical stacking at the ends is exact. With equal handles every slice would share
+   * the same mid x, so on steep links the slices would slide over each other. Instead
+   * each slice gets its own pair of horizontal handles:
+   *   h0 + h1 = dx                      keeps its slope through the middle parallel
+   *                                     to the link's centre line
+   *   h0 - h1 = -(8/3)·d·tan(θ/2)       slides its middle sideways so it stays at
+   *                                     distance d from the centre line there
+   * (d = the slice centre's offset from the link centre, θ = the link's angle at its
+   * middle). That is exact at both ends and the middle and very close in between.
+   * Handles are clamped to [0, dx] for extreme short, steep, thick links.
    */
-  let SAMPLES = 48; // points per curve; lowered for dense charts (see render)
-  function band(l, offset, w) {
+  function slicePath(l, offset, w) {
     const x0 = l.s.x + l.s.w, x1 = l.t.x, dx = x1 - x0;
-    const c0 = x0 + dx * 0.5, c1 = x1 - dx * 0.5;
-    const ya = l.sy + l.w / 2, yb = l.ty + l.w / 2;
-    const a = offset - l.w / 2, b = a + w;
-    const top = [], bot = [];
-    for (let i = 0; i <= SAMPLES; i++) {
-      const t = i / SAMPLES, mt = 1 - t;
-      const x = mt * mt * mt * x0 + 3 * mt * mt * t * c0 + 3 * mt * t * t * c1 + t * t * t * x1;
-      const y = (mt * mt * mt + 3 * mt * mt * t) * ya + (3 * mt * t * t + t * t * t) * yb;
-      const tx = 3 * mt * mt * (c0 - x0) + 6 * mt * t * (c1 - c0) + 3 * t * t * (x1 - c1);
-      const ty = 6 * mt * t * (yb - ya);
-      const len = Math.hypot(tx, ty) || 1;
-      const nx = -ty / len, ny = tx / len;
-      top.push((x + nx * a).toFixed(1) + ',' + (y + ny * a).toFixed(1));
-      bot.push((x + nx * b).toFixed(1) + ',' + (y + ny * b).toFixed(1));
-    }
-    return 'M' + top.join('L') + 'L' + bot.reverse().join('L') + 'Z';
+    const d = offset + w / 2 - l.w / 2;
+    const ya = l.sy + offset + w / 2, yb = l.ty + offset + w / 2;
+    const theta = Math.atan2(1.5 * (l.ty - l.sy), 0.75 * dx);
+    const diff = -(8 / 3) * d * Math.tan(theta / 2);
+    const h0 = Math.min(dx, Math.max(0, (dx + diff) / 2)), h1 = Math.min(dx, Math.max(0, (dx - diff) / 2));
+    return 'M' + x0.toFixed(1) + ',' + ya.toFixed(1) +
+      'C' + (x0 + h0).toFixed(1) + ',' + ya.toFixed(1) + ' ' + (x1 - h1).toFixed(1) + ',' + yb.toFixed(1) + ' ' + x1.toFixed(1) + ',' + yb.toFixed(1);
+  }
+  function slice(cls, l, offset, w, color) {
+    return '<path class="' + cls + '" style="stroke-width:' + w.toFixed(2) + 'px' + (color ? ';stroke:' + color : '') + '" d="' + slicePath(l, offset, w) + '"/>';
   }
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function fmt(n) {
@@ -188,20 +189,17 @@
         const v = segs[p.id] || 0; if (!v) return;
         const w = v / l.value * l.w;
         const c = colorOf(p.id);
-        if (c && w > 0.15) out += '<path class="' + cls + '" style="fill:' + c + '" d="' + band(l, off, w) + '"/>';
-        else if (!c && cls === 'sk-link__focus' && w > 0.15) out += '<path class="sk-link__focus-grey" d="' + band(l, off, w) + '"/>';
+        if (c && w > 0.15) out += slice(cls, l, off, w, c);
+        else if (!c && cls === 'sk-link__focus' && w > 0.15) out += slice('sk-link__focus-grey', l, off, w, null);
         off += w;
       });
       return out;
     }
-    // dense charts (hundreds of flow segments) use fewer points per curve: the difference
-    // isn't visible at that density, but drawing time is
-    SAMPLES = L.links.length > 120 ? 16 : 48;
     const parts = [];
     parts.push('<g class="sk-links">');
     L.links.forEach(function (l) {
       parts.push('<g class="sk-link' + (focusing ? ' is-focusing' : '') + (focusing && l.f < 0.01 ? ' is-dim' : '') + '" data-link="' + esc(l.key) + '">');
-      parts.push('<path class="sk-link__base" d="' + band(l, 0, l.w) + '"/>');
+      parts.push(slice('sk-link__base', l, 0, l.w, null));
       if (focusing) { if (l.f > 0.01) parts.push(segPaths(l, l.segF, l.f, 'sk-link__focus')); }
       else parts.push(segPaths(l, l.seg, l.value, 'sk-link__seg'));
       parts.push('</g>');
