@@ -1182,7 +1182,8 @@
       showTip(e, tipForNode(n.dataset.node));
     } else {
       if (state.hover) { state.hover = null; render(); }
-      if (l) showTip(e, tipForLink(l.dataset.link)); else hideTip();
+      // an open (pinned) tooltip must survive the mouse crossing empty chart space on its way to it
+      if (l) showTip(e, tipForLink(l.dataset.link)); else if (!pinned) hideTip();
     }
   });
   el.svg.addEventListener('mouseleave', function () { if (!pinned) hideTip(); if (state.hover) { state.hover = null; render(); } });
