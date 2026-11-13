@@ -1364,6 +1364,27 @@
     if (e.key === ' ' && tab().time && e.target === document.body) { e.preventDefault(); state.playing ? stopPlay() : play(); }
   });
 
+  // L toggles the node labels (main chart and the close-up), unless the user is typing
+  let labelToastTimer = null;
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'l' && e.key !== 'L') return;
+    if (e.ctrlKey || e.metaKey || e.altKey || e.repeat || e.isComposing) return;
+    const t = e.target;
+    if (t && (t.isContentEditable || (t.closest && t.closest('input, textarea, select, [contenteditable]')))) return;
+    const hidden = document.body.classList.toggle('labels-hidden');
+    let toast = $('label-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'label-toast'; toast.className = 'label-toast';
+      toast.setAttribute('role', 'status'); toast.setAttribute('aria-live', 'polite');
+      document.body.appendChild(toast);
+    }
+    toast.textContent = hidden ? 'Labels hidden · press L to show' : 'Labels shown · press L to hide';
+    toast.classList.add('is-visible');
+    clearTimeout(labelToastTimer);
+    labelToastTimer = setTimeout(function () { toast.classList.remove('is-visible'); }, 1600);
+  });
+
   el.comments.addEventListener('click', function (e) {
     const t = e.target;
     const sel = t.closest('[data-select]'); if (sel) { state.selected = sel.dataset.select; render(); return; }

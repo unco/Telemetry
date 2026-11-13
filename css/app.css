@@ -516,3 +516,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
   .p-homelab__cards { grid-template-columns: 1fr; }
   .p-homelab__card + .p-homelab__card { padding-left: 0; border-left: 0; border-top: 1px solid var(--border); }
 }
+
+/* L key: hide node labels and their volumes (main chart and close-up) */
+.labels-hidden .sk-label, .labels-hidden .sk-meta { display: none; }
+.label-toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 8px); z-index: 40; background: #111; color: #fff; padding: 8px 14px; font-size: .875rem; border-radius: 2px; box-shadow: 0 2px 8px rgba(0,0,0,.2); opacity: 0; pointer-events: none; transition: opacity .15s, transform .15s; }
+.label-toast.is-visible { opacity: 1; transform: translate(-50%, 0); }
+@media (prefers-reduced-motion: reduce) { .label-toast { transition: none; } }

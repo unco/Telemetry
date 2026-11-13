@@ -47,6 +47,7 @@ Prototype of the **Insights** page (Telemetry product): a single-page Sankey. Se
 - Single page, no tabs: view + group by + comments + timeline all available. Opens on Neutral view, devices ungrouped, "Compare to: nothing" (no deltas until chosen). "Reset comments" is a footer link.
 - No snapd / telemetry endpoint markers in the chart (removed at the user's request).
 - Columns top-aligned (top stream horizontal, others rise into it); flows fairly transparent.
+- L key (no modifiers, not while typing in an input, textarea, select or contenteditable) toggles node labels and volumes on and off in the main chart and the close-up; a short toast confirms the state. Not persisted.
 - Links: each colour slice is one stroked cubic Bézier (horizontal handles). Per slice, h0 + h1 = dx (parallel through the middle) and h0 − h1 = −(8/3)·d·tan(θ/2) (shifted to stay at its offset d). Agreed with the user over sampled polygons (faceted) and equal-handle strokes (slices overlap on steep links).
 
 ## Reporting status (pipe health)
