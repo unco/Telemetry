@@ -225,7 +225,10 @@ window.TL = window.TL || {};
   // Destinations are the customer's own systems (illustrative roles for a
   // large enterprise). `zone` = where the system stores data, used to spot
   // telemetry leaving its residency zone.
+  // Canonical destinations come first
   const DESTINATIONS = { label: 'Destination', values: [
+    { id: 'store', label: 'Snap Store (update checks)', zone: 'canonical', kind: 'canonical' },
+    { id: 'canonical', label: 'Canonical telemetry', zone: 'canonical', kind: 'canonical' },
     { id: 'observability', label: 'Observability platform', zone: 'us' },
     { id: 'lake-us', label: 'Analytics data lake · US', zone: 'us' },
     { id: 'lake-eu', label: 'Analytics data lake · EU', zone: 'eu' },
@@ -235,10 +238,24 @@ window.TL = window.TL || {};
     { id: 'itsm', label: 'ITSM · incident tickets', zone: 'us' },
     { id: 'landscape', label: 'Landscape (on-prem)', zone: 'onprem' },
     { id: 'archive', label: 'Compliance archive (7-year)', zone: 'onprem' },
-    { id: 'store', label: 'Snap Store (update checks)', zone: 'canonical' },
-    { id: 'canonical', label: 'Canonical telemetry', zone: 'canonical' },
     { id: 'drop-schema', label: 'Dropped by schema', zone: 'none', drop: true, note: 'Events that didn’t match the snap’s registered schema' },
     { id: 'drop-shaping', label: 'Dropped by shaping', zone: 'none', drop: true, note: 'Events over the snap’s rate limit, or sampled out' }] };
+
+  // Destinations can be grouped too (the destination end of the Sankey): by type of system or by location.
+  // Drops stay as their own nodes in every grouping.
+  const DEST_KIND = { store: 'canonical', canonical: 'canonical', observability: 'observability', 'lake-us': 'lake', 'lake-eu': 'lake', 'lake-uk': 'lake',
+    siem: 'security', cmdb: 'itops', itsm: 'itops', landscape: 'management', archive: 'archive', 'drop-schema': 'drop-schema', 'drop-shaping': 'drop-shaping' };
+  const DROP_VALUES = DESTINATIONS.values.filter(function (v) { return v.drop; }).map(function (v) { return { id: v.id, label: v.label, drop: true, note: v.note }; });
+  const DESTKIND = { label: 'Destination type', values: [
+    { id: 'canonical', label: 'Canonical', note: 'Snap Store update checks and Canonical telemetry' },
+    { id: 'observability', label: 'Observability' }, { id: 'lake', label: 'Data lakes' }, { id: 'security', label: 'Security' },
+    { id: 'itops', label: 'IT operations', note: 'CMDB and ITSM' }, { id: 'management', label: 'Fleet management' }, { id: 'archive', label: 'Archive' }].concat(DROP_VALUES) };
+  const DESTZONE = { label: 'Destination location', values: [
+    { id: 'canonical', label: 'Canonical' }, { id: 'us', label: 'United States' }, { id: 'eu', label: 'European Union' },
+    { id: 'uk', label: 'United Kingdom' }, { id: 'onprem', label: 'On-premises' }].concat(DROP_VALUES) };
+  const DEST_ZONE = {};
+  DESTINATIONS.values.forEach(function (v) { DEST_ZONE[v.id] = v.drop ? v.id : v.zone; });
+  const DEST_GROUP_BYS = [{ id: 'destination', label: 'None (each destination)' }, { id: 'destkind', label: 'Type' }, { id: 'destzone', label: 'Location' }];
 
   // ---- Policy rules (ordered, first match wins) -----------------------
   // `when` matches device attributes and/or publisher; `to` lists
@@ -522,7 +539,7 @@ window.TL = window.TL || {};
   const DIMENSIONS = {
     // '__others' collects devices outside the top N when a fleet is too big to show every device
     device: { label: 'Device', values: DEVICES.map(function (d) { return { id: d.id, label: d.id }; }).concat([{ id: '__others', label: 'Others', others: true }]) },
-    publisher: PUBLISHERS, policy: POLICIES, destination: DESTINATIONS
+    publisher: PUBLISHERS, policy: POLICIES, destination: DESTINATIONS, destkind: DESTKIND, destzone: DESTZONE
   };
   Object.keys(ATTRIBUTES).forEach(function (k) { DIMENSIONS[k] = ATTRIBUTES[k]; });
   Object.keys(DIMENSIONS).forEach(function (k) {
@@ -554,7 +571,7 @@ window.TL = window.TL || {};
         // a fact inherits the device's attributes (shared, not copied: matters at 5,000 devices)
         const push = function (policy, dest, rule, count) {
           const f = Object.create(a);
-          f.device = d.id; f.publisher = pub; f.policy = policy; f.destination = dest; f.rule = rule; f.count = count; f.bytes = count * size;
+          f.device = d.id; f.publisher = pub; f.policy = policy; f.destination = dest; f.destkind = DEST_KIND[dest]; f.destzone = DEST_ZONE[dest]; f.rule = rule; f.count = count; f.bytes = count * size;
           facts.push(f);
         };
         push('schema', 'drop-schema', 'Schema', base * schemaF);
@@ -643,7 +660,7 @@ window.TL = window.TL || {};
         const schemaF = crash ? 0.4 : 0.006, shapingF = crash ? 0 : SHAPING_DROP.plc;
         const push = function (policy, dest, rule, count) {
           const f = Object.create(a);
-          f.device = d.id; f.publisher = 'plc'; f.policy = policy; f.destination = dest; f.rule = rule;
+          f.device = d.id; f.publisher = 'plc'; f.policy = policy; f.destination = dest; f.destkind = DEST_KIND[dest]; f.destzone = DEST_ZONE[dest]; f.rule = rule;
           f.count = count; f.bytes = count * EVENT_BYTES.plc; f.cstate = s;
           f.restarts = crash && policy === 'schema' ? share * restarts : 0;
           facts.push(f);
@@ -673,7 +690,7 @@ window.TL = window.TL || {};
   function homeFacts(d, a, pub, vol, facts) {
     const push = function (policy, dest, rule, count, size) {
       const f = Object.create(a);
-      f.device = d.id; f.publisher = pub; f.policy = policy; f.destination = dest; f.rule = rule; f.count = count; f.bytes = count * size;
+      f.device = d.id; f.publisher = pub; f.policy = policy; f.destination = dest; f.destkind = DEST_KIND[dest]; f.destzone = DEST_ZONE[dest]; f.rule = rule; f.count = count; f.bytes = count * size;
       facts.push(f);
     };
     push('updates', 'store', 'Free plan', 24, 300); // hourly refresh checks
@@ -912,7 +929,7 @@ window.TL = window.TL || {};
     MONTHS: MONTHS, monthLabel: monthLabel,
     ATTRIBUTES: ATTRIBUTES, DIMENSIONS: DIMENSIONS, ROUTING: ROUTING, PALETTE: PALETTE, HEALTH_COMPONENTS: HEALTH_COMPONENTS, HEALTH_RAMP: HEALTH_RAMP,
     DEVICES: DEVICES, VIEWS: VIEWS, GROUP_BYS: GROUP_BYS, GROUP_BY_MENU: GROUP_BY_MENU, GROUP_BY_LABELS: GROUP_BY_LABELS,
-    PIPELINE: ['publisher', 'policy', 'destination'],
+    PIPELINE: ['publisher', 'policy', 'destination'], DEST_GROUP_BYS: DEST_GROUP_BYS,
     snapshot: snapshot, deviceAt: deviceAt,
     homeLab: homeLab, CLOSEUP: CLOSEUP, closeupFacts: closeupFacts, closeupDevice: closeupDevice,
     valueOf: valueOf, parseNodeId: parseNodeId, nodeLabel: nodeLabel,

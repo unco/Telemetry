@@ -22,6 +22,7 @@
   const state = {
     view: 'neutral',
     groupBy: TL.DEVICES.length >= 100 ? 'site' : 'device', // big fleets open grouped
+    destGroupBy: 'destination', // the destination end can be grouped too (type or location)
     scope: null,             // drill-down: { dim, val } limits the chart to one group's devices
     isolate: {},             // { viewId: valueId } — colour only this value
     excluded: {},            // { dim: { valueId: true } }
@@ -33,7 +34,7 @@
 
   const $ = function (id) { return document.getElementById(id); };
   const el = {
-    viewSelect: $('view-select'), hlField: $('hl-field'), groupby: $('groupby'),
+    viewSelect: $('view-select'), hlField: $('hl-field'), groupby: $('groupby'), destgroup: $('destgroup'),
     groupbyField: $('groupby-field'), hl: $('hl-switch'), hlLabel: $('lbl-hl'), filter: $('group-filter'), question: $('view-question'),
     showField: $('show-field'), showLabel: $('lbl-show'), searchField: $('search-field'), search: $('device-q'),
     kpis: $('kpis'), legend: $('legend'), wrap: $('chart-wrap'), svg: $('sankey'), timeline: $('timeline'),
@@ -46,7 +47,7 @@
   function attr() { return TL.ATTRIBUTES[view().attr]; }
   function palette() { return attr().values.map(function (v) { return { id: v.id, color: v.color || null }; }); }
   function groupBy() { return tab().groupBy ? state.groupBy : 'device'; }
-  function stages() { return [groupBy()].concat(TL.PIPELINE); }
+  function stages() { return [groupBy(), 'publisher', 'policy', state.destGroupBy]; }
   function ctx() { return { view: state.view, groupBy: groupBy() }; }
   function month() { return tab().time ? state.month : LAST; }
   function periodIndex() { return Math.round(month()); }
@@ -201,6 +202,9 @@
     const opt = function (g, label) {
       return '<option value="' + g + '"' + (g === state.groupBy ? ' selected' : '') + '>' + esc(label) + '</option>';
     };
+    el.destgroup.innerHTML = TL.DEST_GROUP_BYS.map(function (g) {
+      return '<option value="' + g.id + '"' + (g.id === state.destGroupBy ? ' selected' : '') + '>' + esc(g.label) + '</option>';
+    }).join('');
     el.groupby.innerHTML = TL.GROUP_BY_MENU.map(function (e) {
       if (e.id) return opt(e.id, e.label);
       const items = e.items.filter(shown);
@@ -457,7 +461,7 @@
     const v = e.target.closest('[data-pipe-view]');
     if (v) { e.preventDefault(); hideTip(); state.view = v.dataset.pipeView; state.groupBy = v.dataset.pipeView; state.scope = null; state.excluded = {}; state.query = ''; state.selected = null; rebuildControls(); render(); document.querySelector('.insights__chart').scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
     const row = e.target.closest('[data-pipe-node]');
-    if (row) { hideTip(); state.selected = row.dataset.pipeNode; render(); document.querySelector('.insights__chart').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    if (row) { hideTip(); state.destGroupBy = 'destination'; el.destgroup.value = 'destination'; state.selected = row.dataset.pipeNode; render(); document.querySelector('.insights__chart').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
   });
   $('pipeline-health').addEventListener('keydown', function (e) {
     const row = e.target.closest('[data-pipe-node]');
@@ -479,8 +483,8 @@
     if (isNeutral()) {
       // no breakdown to report: summarise the pipeline instead
       const pubs = {}, dests = {};
-      Object.keys(agg.nodes).forEach(function (k) { const n = agg.nodes[k]; if (n.dim === 'publisher') pubs[k] = 1; if (n.dim === 'destination' && !TL.valueOf('destination', n.val).drop) dests[k] = 1; });
-      items.push(kpi('Pipeline', Object.keys(pubs).length + ' <span class="p-kpi__unit">snaps → </span>' + Object.keys(dests).length + ' <span class="p-kpi__unit">destinations</span>',
+      Object.keys(agg.nodes).forEach(function (k) { const n = agg.nodes[k]; if (n.dim === 'publisher') pubs[k] = 1; if (n.dim === state.destGroupBy && !(TL.valueOf(n.dim, n.val) || {}).drop) dests[k] = 1; });
+      items.push(kpi('Pipeline', Object.keys(pubs).length + ' <span class="p-kpi__unit">snaps → </span>' + Object.keys(dests).length + ' <span class="p-kpi__unit">' + (state.destGroupBy === 'destkind' ? 'destination types' : state.destGroupBy === 'destzone' ? 'destination locations' : 'destinations') + '</span>',
         'Pick a view to colour flows by an attribute'));
     } else if (view().attr === 'reporting' && !iso) {
       const bad = counts._total - (counts.reporting || 0);
@@ -1084,6 +1088,7 @@
     if (!f) return;
     stopPlay(); hideTip();
     state.view = f.show.view; state.groupBy = f.show.groupBy;
+    if (/^destination:/.test(f.show.select || f.show.node || '')) state.destGroupBy = 'destination';
     state.scope = null; state.excluded = {}; state.query = ''; state.isolate[state.view] = null;
     state.selected = f.show.select; state.hover = null;
     rebuildControls(); render();
@@ -1145,6 +1150,12 @@
     el.hl.querySelector('[data-dd]').focus();
   });
   el.search.addEventListener('input', function (e) { hideTip(); state.query = e.target.value; render(); });
+  el.destgroup.addEventListener('change', function (e) {
+    hideTip();
+    state.destGroupBy = e.target.value; state.hover = null;
+    if (state.selected && /^dest(ination|kind|zone):/.test(state.selected)) state.selected = null;
+    render();
+  });
   el.groupby.addEventListener('change', function (e) {
     hideTip();
     state.groupBy = e.target.value; state.hover = null; clearColumn1Selection();
